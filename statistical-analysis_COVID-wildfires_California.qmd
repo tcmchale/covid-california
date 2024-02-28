@@ -1,0 +1,907 @@
+---
+title: "Statistical Analysis for COVID in California"
+author: "Thomas McHale"
+format: pdf
+editor: visual
+echo: false
+toc: true
+---
+
+```{r, load packages, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE, error = FALSE)
+library(dplyr)
+library(stringr)
+library(tidyr)
+library(tidycensus)
+library(sf)
+library(ggplot2)
+library(scales)
+library(maps)
+library(mapdata)
+library(ggmap)
+library(ggspatial)
+library(rnaturalearth)
+library(rnaturalearthdata)
+library(tidyverse)
+library(tigris)
+library(plotly)
+library(mapproj)
+library(ggtext)
+library(ggrepel)
+library(gstat)
+library(knitr)
+library(rgdal)
+library(raster)
+library(leaflet)
+library(leafem)
+library(rgeos)
+library(mapview)
+library(htmltools)
+library(RColorBrewer)
+library(viridis)
+library(automap)
+library(lme4)
+library(lmerTest)
+library(stargazer)
+library(broom.mixed)
+library(googleway)
+library(kableExtra)
+library(splines)
+library(spdep)
+library(spatialreg)
+library(nlme)
+
+
+Sys.setenv(SHINY_PROGRESS_BAR = "none")
+```
+
+# Cleaning Data
+##### See quarto document for code
+```{r, cleaning geographic data, include=FALSE}
+#DATASETS ALL FROM OPEN SOURCES AND AVAILABLE UPON REQUEST
+
+
+california_county <- st_read("~/Desktop/Wildfire-fungi-project/shapefiles/empty-grids/usa-continental/county/usa-continental_county.shp")
+
+#obtain ACS data about population and median income for california
+california_data <- get_acs(geography = "county", variables = c("B01003_001", "B19013_001"), year = 2020, quietly = TRUE)
+
+cali_wide <- california_data %>% 
+  pivot_wider(names_from = variable, values_from = c(estimate, moe), 
+              names_sep = "_", values_fn = list) %>%
+  rename(population = estimate_B01003_001, 
+         population_moe = moe_B01003_001, 
+         median_income = estimate_B19013_001, 
+         median_income_moe = moe_B19013_001)
+
+
+
+#join population and income data to california
+california <- merge(california_county, cali_wide, by= "GEOID")
+california$population <- unlist(california$population)
+california$median_income <- unlist(california$median_income)
+california$median_income_moe <- unlist(california$median_income_moe)
+
+## add mask use data
+##add mask data
+mask <- read.csv("~/Desktop/Wildfire-fungi-project/repository/smoke-infections/final-project/covid-19/data/mask-use-survey.csv")
+mask$COUNTYFP <- as.numeric(as.character(mask$COUNTYFP))
+# Filter mask use data for California
+mask_ca <- mask %>%
+  mutate(StateFIPS = floor(COUNTYFP / 1000)) %>%
+  filter(StateFIPS == 6) 
+mask_ca$COUNTYFP <- as.character(mask_ca$COUNTYFP)
+mask_ca <- mask_ca %>%
+  mutate(COUNTYFP = substr(as.character(COUNTYFP), 2, nchar(as.character(COUNTYFP))))
+
+#join mask use survey to the california dataframe
+california <- california %>%
+  merge(mask_ca, by = "COUNTYFP")
+
+#obtain occupational data
+# Define variables to retrieve
+variables <- c("B24011_001", "B24011_004", "B24011_016", "B24011_019", "B24011_031", "B24011_034")
+
+# Retrieve data
+occ_data <- get_acs(geography = "county", variables = variables, 
+                    year = 2020, survey = "acs5", state = "CA")
+
+# Filter for California and relevant labor categories
+ca_counties <- occ_data %>% 
+  filter(str_detect(variable, "B24011_004|B24011_007|B24011_011"))
+
+
+
+
+# Reshape the data
+ca_counties <- occ_data %>% 
+  dplyr::select(GEOID, NAME, variable, estimate) %>% 
+  pivot_wider(names_from = variable, values_from = estimate) %>% 
+  mutate(across(starts_with("B24011"), as.numeric))
+
+# Calculate the total number of laborers and outdoor laborers per county
+ca_counties <- ca_counties %>% 
+  mutate(total_laborers = rowSums(dplyr::select(., starts_with("B24011"))),
+         outdoor_laborers = rowSums(dplyr::select(., c("B24011_031", "B24011_034"))))
+
+# Calculate the rate of outdoor laborers per county as a percentage of total laborers
+ca_counties <- ca_counties %>% 
+  mutate(outdoor_laborer_rate = outdoor_laborers/total_laborers * 100)
+
+# Calculate the overall rate of outdoor laborers in California
+ca_total <- ca_counties %>% 
+  summarize(total_laborers = sum(total_laborers),
+            outdoor_laborers = sum(outdoor_laborers)) %>% 
+  mutate(outdoor_laborer_rate = outdoor_laborers/total_laborers * 100)
+
+california <- merge(ca_counties, california, by= "GEOID")
+california$outdoor_laborer_rate <- unlist(california$outdoor_laborer_rate)
+california$outdoor_laborers <- unlist(california$outdoor_laborers)
+
+california_sf <- st_as_sf(california)
+
+# Remove ", California" from NAME column
+california_sf$NAME <- str_remove(california_sf$NAME, " County, California")
+california$NAME <- str_remove(california$NAME, " County, California")
+
+## california avg temp by county in 2020-2022 (DOWNLOADED FROM NOAA)
+ca_avg.temp <- read.csv("~/Desktop/Wildfire-fungi-project/repository/smoke-infections/data/environmental/ca_avg-temp_2020.csv") 
+ca_avg.temp <- ca_avg.temp %>%
+  mutate(NAME = str_remove(NAME, " County")) %>%
+  rename(avg_temp = Value)
+
+ca_avg.temp_21 <- read.csv("~/Desktop/Wildfire-fungi-project/repository/smoke-infections/data/environmental/ca_avg-temp_2021.csv")
+ca_avg.temp_21 <- ca_avg.temp_21 %>%
+  mutate(NAME = str_remove(NAME, " County")) 
+
+ca_avg.temp_22 <- read.csv("~/Desktop/Wildfire-fungi-project/repository/smoke-infections/data/environmental/ca_avg-temp_2022.csv")
+ca_avg.temp_22 <- ca_avg.temp_22 %>%
+  mutate(NAME = str_remove(NAME, " County"))
+
+## california avg precip by county in 2020 (DOWNLOADED FROM NOAA)
+#ca_avg.precip <- read.csv("~/Desktop/Wildfire-fungi-project/repository/smoke-infections/data/environmental/ca_avg-precip_2020.csv")
+#ca_avg.precip <- ca_avg.precip %>%
+ # mutate(NAME = str_remove(NAME, " County"))
+
+ca_avg.precip_21 <- read.csv("~/Desktop/Wildfire-fungi-project/repository/smoke-infections/data/environmental/ca_avg-precip_2021.csv")
+ca_avg.precip_21 <- ca_avg.precip_21 %>%
+  mutate(NAME = str_remove(NAME, " County"))
+
+ca_avg.precip_22 <- read.csv("~/Desktop/Wildfire-fungi-project/repository/smoke-infections/data/environmental/ca_avg-precip_2022.csv")
+ca_avg.precip_22 <- ca_avg.precip_22 %>%
+  mutate(NAME = str_remove(NAME, " County"))
+
+### california elevation
+ca_elevation <- st_read("~/Desktop/Wildfire-fungi-project/shapefiles/elevation/california-elevation.shp")
+ca_elevation_df <- as.data.frame(ca_elevation)
+ca_elevation_df <- ca_elevation_df %>%
+  rename(elevation = X_mean) %>%
+  dplyr::select(-X_count, -X_sum)
+ca_elevation_df <- ca_elevation_df %>%
+  dplyr::select(GEOID, NAME, COUNTYF, STATEFP, COUNTYN, INTPTLA, INTPTLO, elevation, geometry)
+ca_elevation_df$NAME <- str_remove(ca_elevation$NAME, " County")
+
+
+```
+
+```{r, climate data}
+
+
+#### import precipitation
+# precip = values. unit = inches
+# recorded in monthly totals
+data_jan <- read.csv("~/Desktop/Wildfire-fungi-project/repository/smoke-infections/data/environmental/cal_precip_2020_jan.csv")
+data_feb <- read.csv("~/Desktop/Wildfire-fungi-project/repository/smoke-infections/data/environmental/cal_precip_2020_feb.csv")
+data_mar <- read.csv("~/Desktop/Wildfire-fungi-project/repository/smoke-infections/data/environmental/cal_precip_2020_mar.csv")
+data_apr <- read.csv("~/Desktop/Wildfire-fungi-project/repository/smoke-infections/data/environmental/cal_precip_2020_apr.csv")
+data_may <- read.csv("~/Desktop/Wildfire-fungi-project/repository/smoke-infections/data/environmental/cal_precip_2020_may.csv")
+data_jun <- read.csv("~/Desktop/Wildfire-fungi-project/repository/smoke-infections/data/environmental/cal_precip_2020_jun.csv")
+data_jul <- read.csv("~/Desktop/Wildfire-fungi-project/repository/smoke-infections/data/environmental/cal_precip_2020_jul.csv")
+data_aug <- read.csv("~/Desktop/Wildfire-fungi-project/repository/smoke-infections/data/environmental/cal_precip_2020_aug.csv")
+data_sep <- read.csv("~/Desktop/Wildfire-fungi-project/repository/smoke-infections/data/environmental/cal_precip_2020_sep.csv")
+data_oct <- read.csv("~/Desktop/Wildfire-fungi-project/repository/smoke-infections/data/environmental/cal_precip_2020_oct.csv")
+data_nov <- read.csv("~/Desktop/Wildfire-fungi-project/repository/smoke-infections/data/environmental/cal_precip_2020_nov.csv")
+data_dec <- read.csv("~/Desktop/Wildfire-fungi-project/repository/smoke-infections/data/environmental/cal_precip_2020_dec.csv")
+
+# Create a list of datasets for easier processing
+dataset_list <- list(data_jan, data_feb, data_mar, data_apr, data_may, data_jun, 
+                     data_jul, data_aug, data_sep, data_oct, data_nov, data_dec)
+
+# Month names and codes
+months <- c("January", "February", "March", "April", "May", "June", 
+            "July", "August", "September", "October", "November", "December")
+month_codes <- 1:12
+
+# Add month name and code to each dataset
+for (i in 1:length(dataset_list)) {
+  dataset_list[[i]] <- dataset_list[[i]] %>%
+    mutate(Month = months[i], Month_Code = month_codes[i])
+}
+
+# Combine all datasets into one
+combined_data <- do.call(rbind, dataset_list)
+
+combined_data_cleaned <- combined_data %>%
+  dplyr::select(-starts_with("Anomaly"), -starts_with("X1901"), -"Rank") %>%
+  mutate(Name = str_replace(Name, " County", ""))%>%
+  rename("precip" = "Value", "NAME" = "Name") 
+combined_data_cleaned$precip <- as.numeric(as.character(combined_data_cleaned$precip))
+  
+
+```
+
+```{r, cleaning covid and smoke data, include=FALSE}
+#### clean covid and smoke data
+#load and manipulate covid data
+covid <- read.csv("~/Desktop/Wildfire-fungi-project/repository/smoke-infections/final-project/covid-19/data/covid_counties_date.csv") %>%
+  rename(NAME=county)
+covid$date <- lubridate::mdy(covid$date)
+county <- st_read("~/Desktop/Wildfire-fungi-project/repository/smoke-infections/final-project/shapefiles/grids/us_county_continental.shp", quiet = TRUE) %>%
+  filter(STATEFP=="06")
+
+covid_data <- full_join(covid, county, by = "NAME")
+covid_data <- st_as_sf(covid_data)
+covid_data <- covid_data %>%
+  filter(state=="California")
+
+
+
+
+cal_pop <- get_acs(geography = "county", 
+                   variables = "B01003_001",
+                   state = "CA",
+                   survey = "acs1",
+                   year = 2019)
+cal_pop$NAME <- str_remove(cal_pop$NAME, " County, California")
+
+cal_pop <- cal_pop %>%
+  rename(population = estimate)
+
+
+#covid cases, monthly
+covid_monthly <- covid_data
+covid_monthly_df <- as.data.frame(covid_monthly)
+covid_monthly_df$Month <- month(covid_monthly_df$date)
+covid_monthly_df <- covid_monthly_df %>%
+  group_by(NAME, Month) %>%
+  summarize(cases = sum(cases), deaths = sum(deaths)) %>%
+  ungroup()
+covid_monthly_df$cases[is.na(covid_monthly_df$cases)] <- 0
+covid_monthly_df$deaths[is.na(covid_monthly_df$deaths)] <- 0
+
+## calculate the monthly new cases
+covid_monthly_df <- covid_monthly_df %>%
+  arrange(NAME, Month) %>%
+  group_by(NAME) %>%
+  mutate(
+    monthly_cases = cases - lag(cases, default = 0),
+    monthly_deaths = deaths - lag(deaths, default = 0)
+  )
+
+#add population to covid monthly shp
+covid_monthly_df <- left_join(covid_monthly_df, california, by = "NAME")
+covid_monthly_df <- covid_monthly_df %>%
+  mutate(cases_per10k = (monthly_cases / population) * 10000)
+covid_monthly_df <- covid_monthly_df %>%
+  mutate(deaths_per10k = (monthly_deaths / population) * 10000)
+
+# Convert the columns to appropriate types
+covid_monthly_df$cases <- as.integer(covid_monthly_df$cases)
+covid_monthly_df$deaths <- as.integer(covid_monthly_df$deaths)
+covid_monthly_df$cases_per10k <- as.numeric(covid_monthly_df$cases_per10k)
+covid_monthly_df$deaths_per10k <- as.numeric(covid_monthly_df$deaths_per10k)
+
+
+
+#remove unnecessry columns
+covid_monthly_df <- covid_monthly_df %>%
+  ungroup() %>%
+  dplyr::select(-population_moe, -median_income_moe, -NAME.y.y, -NAME.x, -ALAND, -AWATER)
+
+# Convert numeric month to character month
+covid_monthly_df$Month <- month.name[covid_monthly_df$Month]
+
+# Convert Month to ordered factor
+covid_monthly_df$Month <- factor(
+  covid_monthly_df$Month,
+  levels = month.name,
+  ordered = TRUE
+)
+
+covid_monthly_sf <- st_as_sf(covid_monthly_df)
+
+## Load smoke data
+ca_smoke_monthly_df <-st_read("~/Desktop/Wildfire-fungi-project/repository/smoke-infections/shapefiles/ca_smoke_monthly-2.shp")
+ca_smoke_monthly_df <- ca_smoke_monthly_df %>%
+  rename(Month=month)
+ca_smoke_monthly_df$Month <- as.numeric(ca_smoke_monthly_df$Month)
+
+
+#create sf object from df
+ca_smoke_monthly_sf <- st_as_sf(ca_smoke_monthly_df)
+
+# Convert the Month variable to a factor with labels as the names of the months
+ca_smoke_monthly_sf$Month <- factor(ca_smoke_monthly_sf$Month, 
+                                    levels = 1:12,
+                                    labels = c("January", "February", "March", "April", 
+                                               "May", "June", "July", "August", 
+                                               "September", "October", "November", "December"))
+
+## 
+# Convert the Month variable to a factor with labels as the names of the months
+ca_smoke_monthly_df$Month <- factor(ca_smoke_monthly_df$Month, 
+                                    levels = 1:12,
+                                    labels = c("January", "February", "March", "April", 
+                                               "May", "June", "July", "August", 
+                                               "September", "October", "November", "December"))
+#PM2.5 for 2021 and 2022
+ca_smoke_thru_2022 <- read_csv("~/Desktop/Wildfire-fungi-project/repository/smoke-infections/data/smoke/ca_smoke_monthly_2020-2022.csv")
+
+#restrict to just the year 2021 or 2022
+ca_smoke_21 <- ca_smoke_thru_2022 %>%
+  filter(year==2021)
+ca_smoke_22 <- ca_smoke_thru_2022 %>%
+  filter(year==2022)
+
+```
+
+```{r covid 2021 and 2022 cleaning, echo = FALSE, include=FALSE}
+## california covid 2021
+  #read in covid 2021 dataframe
+  covid_21 <- read_csv("~/Desktop/Wildfire-fungi-project/repository/smoke-infections/data/covid/covid_2021.csv")
+  #fix the county NAME category
+  california$NAME <- str_remove(california$NAME, " County, California")
+  #add to california shp
+  ca_covid_21 <- left_join(california, covid_21, by = "NAME")
+
+  
+# Extract year and month from the date
+ca_covid_21$date <- mdy(ca_covid_21$date)
+ca_covid_21$year <- year(ca_covid_21$date)
+ca_covid_21$Month <- month(ca_covid_21$date)
+
+## calculate the monthly new cases (correcting for cumulative)
+ca_covid_21 <- ca_covid_21 %>%
+  arrange(NAME, Month) %>%
+  group_by(NAME) %>%
+  mutate(
+    monthly_cases = cases - lag(cases, default = 0),
+    monthly_deaths = deaths - lag(deaths, default = 0)
+  )
+
+
+#calculate cases and deaths by population
+  ca_covid_21 <- ca_covid_21 %>%
+    mutate(cases_per10k = (monthly_cases / population) * 10000)
+  ca_covid_21 <- ca_covid_21 %>%
+    mutate(deaths_per10k = (monthly_deaths / population) * 10000)
+# Convert the columns to appropriate types
+ca_covid_21$cases <- as.integer(ca_covid_21$cases)
+ca_covid_21$deaths <- as.integer(ca_covid_21$deaths)
+ca_covid_21$cases_per10k <- as.numeric(ca_covid_21$cases_per10k)
+ca_covid_21$deaths_per10k <- as.numeric(ca_covid_21$deaths_per10k)
+
+#now aggregate covid to monthly
+ca_covmonthly_21 <- ca_covid_21 %>%
+  arrange(fips, NAME, year, Month) %>%
+  group_by(fips, NAME, year, Month) %>%
+  summarise(mo_avg_casesp10k = mean(cases_per10k, na.rm = TRUE),
+            mo_avg_deathsp10k = mean(deaths_per10k, na.rm= TRUE),
+            GEOID = first(GEOID),
+            cases = first(cases),
+            date = first(date),
+            .groups = "drop")
+
+
+## california covid 2022
+  #read in covid 2022 dataframe
+  covid_22 <- read_csv("~/Desktop/Wildfire-fungi-project/repository/smoke-infections/data/covid/covid_2022.csv")
+  #fix the county NAME category
+  #california$NAME <- str_remove(california$NAME, " County, California")
+  #add to california shp
+  ca_covid_22 <- left_join(california, covid_22, by = "NAME")
+
+# Extract year and month from the date
+ca_covid_22$date <- mdy(ca_covid_22$date)
+ca_covid_22$year <- year(ca_covid_22$date)
+ca_covid_22$Month <- month(ca_covid_22$date)
+
+## calculate the monthly new cases (correcting for cumulative)
+ca_covid_22 <- ca_covid_22 %>%
+  arrange(NAME, Month) %>%
+  group_by(NAME) %>%
+  mutate(
+    monthly_cases = cases - lag(cases, default = 0),
+    monthly_deaths = deaths - lag(deaths, default = 0)
+  )
+  
+#calculate cases and deaths by population
+  ca_covid_22 <- ca_covid_22 %>%
+    mutate(cases_per10k = (cases / population) * 10000)
+  ca_covid_22 <- ca_covid_22 %>%
+    mutate(deaths_per10k = (deaths / population) * 10000)
+# Convert the columns to appropriate types
+ca_covid_22$cases <- as.integer(ca_covid_22$cases)
+ca_covid_22$deaths <- as.integer(ca_covid_22$deaths)
+ca_covid_22$cases_per10k <- as.numeric(ca_covid_22$cases_per10k)
+ca_covid_22$deaths_per10k <- as.numeric(ca_covid_22$deaths_per10k)
+
+
+
+ca_covmonthly_22 <- ca_covid_22 %>%
+  arrange(fips, NAME, year, Month) %>%
+  group_by(fips, NAME, year, Month) %>%
+  summarise(mo_avg_casesp10k = mean(cases_per10k, na.rm = TRUE),
+            mo_avg_deathsp10k = mean(deaths_per10k, na.rm= TRUE),
+            GEOID = first(GEOID),
+            cases = first(cases),
+            date = first(date),
+            .groups = "drop")
+
+```
+
+# Statistical Analysis
+
+## Linear Mixed Effects Regression
+
+### Univariate
+```{r, univariate}
+covid_monthly_df <- as.data.frame(covid_monthly_df)
+#### 2020 COVID California non-spatial analysis
+#make both datasets Month variable ordered factors
+ca_smoke_monthly_df$Month <- factor(ca_smoke_monthly_df$Month, levels = month.name, ordered = TRUE)
+#covid_monthly_df2$Month <- factor(covid_monthly_df2$Month, levels = month.name, ordered = TRUE)
+covid_monthly_df$Month <- factor(month.name[covid_monthly_df$Month], levels = month.name, ordered = TRUE)
+
+#create new joined dataframe
+data <- left_join(ca_smoke_monthly_df, covid_monthly_df, by = c("NAME", "Month"))
+
+#missing values generated from the calculation are counties that had no reported cases
+data$cases_per10k[is.na(data$cases_per10k)] <- 0
+data$deaths_per10k[is.na(data$deaths_per10k)] <- 0
+
+# Now arrange by NAME and Month, then group and create lagged variables
+data <- data %>%
+  arrange(NAME, Month) %>%
+  group_by(NAME) %>%
+  mutate(covid_incidence_1mo = lag(cases_per10k, 1),
+         covid_incidence_2mo = lag(cases_per10k, 2),
+         death_incidence_1mo = lag(deaths_per10k, 1),
+         death_incidence_2mo = lag(deaths_per10k, 2)) %>%
+  ungroup()
+
+#Build models adjust smoke so that we measure change per 10µg/m^3 of PM2.5
+model_1mo <- lmer(covid_incidence_1mo ~ I(smoke / 10) + (1 | NAME), data = data)
+model_2mo <- lmer(covid_incidence_2mo ~ I(smoke / 10) + (1 | NAME), data = data)
+
+# Does the lmer account for spatial autocorrelation?
+# Filter the dataset to include only non-missing values of covid_incidence_1mo
+data_non_missing <- data[!is.na(data$covid_incidence_1mo), ]
+neighbors <- poly2nb(data_non_missing)
+weights <- nb2listw(neighbors, style = "W")
+residuals_1mo <- resid(model_1mo)
+residuals_2mo <- resid(model_2mo)
+
+
+#moran.test(residuals_1mo, weights)
+#moran.test(residuals_2mo, weights)
+####### ## THE NON-Significant MORANS-I stat indicates spatial autocorrelation is accounted for by lmer
+
+
+# Extract model summaries using broom.mixed
+summary_1mo <- tidy(model_1mo)
+summary_2mo <- tidy(model_2mo)
+
+# Function to Extract relevant information from model
+extract_data <- function(summary_data) {
+  summary_data %>%
+    dplyr::filter(term == "I(smoke/10)") %>%  
+    dplyr::mutate(
+      estimate = round(estimate, 2),
+      p_value = round(p.value, 4),
+      t_value_95 = qt(0.975, df),
+      lower_95 = round(estimate - (t_value_95 * std.error), 2),
+      upper_95 = round(estimate + (t_value_95 * std.error), 2)
+    ) %>%
+    dplyr::select(estimate, lower_95, upper_95, p_value)
+}
+
+# Extract data
+data_1mo <- extract_data(summary_1mo)
+data_2mo <- extract_data(summary_2mo)
+
+# Combine into a single dataframe
+combined_data <- bind_rows(data_1mo, data_2mo)
+combined_data <- combined_data %>%
+  mutate(Lag_Period = c("1 Month", "2 Months"))%>%
+  dplyr::select(Lag_Period, everything())
+
+# Print the combined table
+table1 <- kable(combined_data, 
+      caption = "Univariate LME Model of Smoke on COVID-19 Incidence") %>%
+  kable_styling()
+table1
+
+#linear mixed effect  with smoke factor
+model1 <- lmer(death_incidence_1mo ~ I(smoke/10) + (1 | NAME), data = data)
+#summary(model1)
+model2 <- lmer(death_incidence_2mo ~ I(smoke/10) + (1|NAME) , data=data)
+
+# Extract model summaries using broom.mixed
+summary_model1 <- tidy(model1)
+summary_model2 <- tidy(model2)
+
+# Extract data
+data_1mo <- extract_data(summary_model1)
+data_2mo <- extract_data(summary_model2)
+
+#combine data
+combined_data <- bind_rows(data_1mo, data_2mo)
+combined_data <- combined_data %>%
+  mutate(Lag_Period = c("1 Month", "2 Months")) %>%
+  dplyr::select(Lag_Period, everything())
+
+# Print the combined table
+table2 <- kable(combined_data, 
+      caption = "Univariate LME Model of Smoke on COVID-19 Death") %>%
+  kable_styling()
+table2
+
+```
+### Multivariate
+```{r, multivariate}
+
+#add temp data to dataset
+data <- left_join(data, ca_avg.temp, by = "NAME")
+#add precip data to dataset (annual cumulative)
+#data <- left_join(data, ca_avg.precip, by = "NAME") #comment out beause this is annual cum
+#add elevation data to dataset
+data <- left_join(data, ca_elevation_df, by = "NAME")
+
+
+#add precip to dataset (monthly totals)
+#this also adds month as a code which will allow to create continuous variable
+data <- merge(data, combined_data_cleaned, by = c("NAME", "Month"), all = TRUE)
+
+# Converting month to a continuous variable
+# Convert month names to lowercase to ensure consistency
+data$Month <- tolower(data$Month)
+
+# Map month names to numbers
+month_map <- setNames(1:12, tolower(month.abb))
+
+# Apply the mapping to the 'Month' column
+data$Month_Num <- sapply(data$Month, function(m) month_map[m])
+
+# Now 'Month_Num' can be used as a continuous variable in your model
+
+
+
+#standardize predictors
+data$median_income <- scale(data$median_income)
+data$avg_temp <- scale(data$avg_temp)
+data$precip <- scale(data$precip)
+data$ALWAYS <- scale(data$ALWAYS)
+data$outdoor_laborer_rate <- scale(data$outdoor_laborer_rate)
+data$elevation <- scale(data$elevation)
+
+#model for covid incidence
+model1 <- lmer(covid_incidence_1mo ~ I(smoke/10) + median_income + outdoor_laborer_rate + avg_temp + precip + 
+                 elevation + 
+                 ALWAYS 
+               + Month_Code
+               + (1|NAME), data = data)
+summary(model1)
+
+
+
+
+#model for death
+model2 <- lmer(death_incidence_1mo ~ I(smoke/10) + median_income + outdoor_laborer_rate + avg_temp + precip
+               + elevation 
+                 + ALWAYS  
+                 +Month_Code
+               + (1|NAME), data = data)
+summary(model2)
+
+#model for 2-month lag covid incidence
+model3 <- lmer(covid_incidence_2mo ~ I(smoke/10) + median_income + outdoor_laborer_rate + avg_temp + precip + ALWAYS + elevation
+               + Month_Code 
+               + (1|NAME), data = data)
+summary(model3)
+
+#model for 2-month lag covid death
+model4 <- lmer(death_incidence_2mo ~ I(smoke/10) + median_income + outdoor_laborer_rate + avg_temp + precip + ALWAYS + elevation
+               + Month_Code 
+               + (1|NAME), data = data)
+summary(model4)
+
+# Extract model summaries using broom.mixed
+summary_model1 <- tidy(model1)
+summary_model2 <- tidy(model2)
+summary_model3 <- tidy(model3)
+summary_model4 <- tidy(model4)
+
+
+confint_model1 <- confint(model1)
+confint_model2 <- confint(model2)
+confint_model3 <- confint(model3)
+confint_model4 <- confint(model4)
+
+extract_data <- function(summary_model, confint_model) {
+  confint_df <- as.data.frame(confint_model)
+  names(confint_df) <- c("conf.low", "conf.high")
+  confint_df$term <- rownames(confint_df)
+  
+  data <- summary_model %>%
+    dplyr::select(term, estimate, std.error, p.value) %>%
+    dplyr::left_join(confint_df, by = "term")
+  return(data)
+}
+
+data_model1 <- extract_data(summary_model1, confint_model1)
+data_model2 <- extract_data(summary_model2, confint_model2)
+data_model3 <- extract_data(summary_model3, confint_model3)
+data_model4 <- extract_data(summary_model4, confint_model4)
+
+
+# Add a new column to each data frame to identify the source
+data_model1$Label <- '1-COVID Incidence 1-Month Lag'
+data_model2$Label <- '3-COVID Death 1-Month Lag'
+data_model3$Label <- '2-COVID Incidence 2-Month Lag'
+data_model4$Label <- '4-COVID Death 2-Month Lag'
+
+# Combine the data frames
+combined_data <- bind_rows(data_model1, data_model2, data_model3, data_model4)
+
+# Split combined_data into a list of data frames based on the label
+split_data <- split(combined_data, combined_data$Label)
+
+# Print each data frame with its label
+lapply(names(split_data), function(name) {
+  cat("Table for:", name, "\n")
+  print(split_data[[name]][, -ncol(split_data[[name]])], n = 40) # Exclude the Label column from printing
+  cat("\n") # Add a newline for better readability between tables
+})
+
+```
+
+## Spatial Auto-regressive Model
+
+### Spatial Lag Model
+
+```{r, spatial lag model}
+# Identify and remove empty geometries
+empty_geoms <- st_is_empty(data)
+if (any(empty_geoms)) {
+  data <- data[!empty_geoms, ]
+  print("Empty geometries removed")
+} else {
+  print("No empty geometries found")
+}
+
+# Create a spatial weights matrix (neighbors is redundant as this is already done above)
+neighbors <- poly2nb(data)
+weights <- nb2listw(neighbors, style = "W")
+
+#spatal lag model
+formula1 <- covid_incidence_1mo ~ I(smoke/10)
+formula2 <- covid_incidence_1mo ~ I(smoke/10) + median_income + outdoor_laborer_rate + avg_temp + precip + Month_Code + ALWAYS
+
+lag_model1 <- lagsarlm(formula1, data = data, listw = weights)
+summary(lag_model1)
+
+lag_model2 <- lagsarlm(formula2, data = data, listw = weights)
+summary(lag_model2)
+
+formula3 <- covid_incidence_2mo ~ I(smoke/10)
+formula4 <- covid_incidence_2mo ~ I(smoke/10) + median_income + outdoor_laborer_rate + avg_temp + precip + elevation + ALWAYS + Month_Code
+
+lag_model3 <- lagsarlm(formula3, data = data, listw = weights)
+#summary(lag_model3)
+
+lag_model4 <- lagsarlm(formula4, data = data, listw = weights)
+#summary(lag_model4)
+
+
+# Extract model summaries using broom.mixed
+summary_model1 <- tidy(lag_model1)
+summary_model2 <- tidy(lag_model2)
+summary_model3 <- tidy(lag_model3)
+summary_model4 <- tidy(lag_model4)
+
+
+confint_model1 <- confint(lag_model1)
+confint_model2 <- confint(lag_model2)
+confint_model3 <- confint(lag_model3)
+confint_model4 <- confint(lag_model4)
+
+extract_data <- function(summary_model, confint_model) {
+  confint_df <- as.data.frame(confint_model)
+  names(confint_df) <- c("conf.low", "conf.high")
+  confint_df$term <- rownames(confint_df)
+  
+  data <- summary_model %>%
+    dplyr::select(term, estimate, std.error, p.value) %>%
+    dplyr::left_join(confint_df, by = "term")
+  return(data)
+}
+
+data_model1 <- extract_data(summary_model1, confint_model1)
+data_model2 <- extract_data(summary_model2, confint_model2)
+data_model3 <- extract_data(summary_model3, confint_model3)
+data_model4 <- extract_data(summary_model4, confint_model4)
+
+# Add a new column to each data frame to identify the source
+data_model1$Label <- '1-Unadjusted COVID Incidence 1-Month Lag'
+data_model2$Label <- '3-Adjusted COVID Incidence 1-Month Lag'
+data_model3$Label <- '2-Unadjusted COVID Incidence 2-Month Lag'
+data_model4$Label <- '4-Adjusted COVID Incidence 2-Month Lag'
+
+# Combine the data frames
+combined_data <- bind_rows(data_model1, data_model2, data_model3, data_model4)
+
+# Split combined_data into a list of data frames based on the label
+split_data <- split(combined_data, combined_data$Label)
+
+# Print each data frame with its label
+lapply(names(split_data), function(name) {
+  cat("Table for:", name, "\n")
+  print(split_data[[name]][, -ncol(split_data[[name]])], n = 40) # Exclude the Label column from printing
+  cat("\n") # Add a newline for better readability between tables
+})
+
+#spatial lag model for death
+dth_formula1 <- death_incidence_1mo ~ I(smoke/10)
+dth_formula2 <- death_incidence_1mo ~ I(smoke/10) + median_income + outdoor_laborer_rate + avg_temp + precip + elevation + ALWAYS + Month_Code
+
+dth_lag_model1 <- lagsarlm(dth_formula1, data = data, listw = weights)
+#summary(dth_lag_model1)
+
+dth_lag_model2 <- lagsarlm(dth_formula2, data = data, listw = weights)
+#summary(dth_lag_model2)
+
+dth_formula3 <- death_incidence_2mo ~ I(smoke/10)
+dth_formula4 <- death_incidence_2mo ~ I(smoke/10) + median_income + outdoor_laborer_rate + avg_temp + precip + elevation + ALWAYS + Month_Code
+
+dth_lag_model3 <- lagsarlm(dth_formula3, data = data, listw = weights)
+#summary(dth_lag_model3)
+
+dth_lag_model4 <- lagsarlm(dth_formula4, data = data, listw = weights)
+#summary(dth_lag_model4)
+
+# Extract model summaries using broom.mixed
+summary_model1 <- tidy(dth_lag_model1)
+summary_model2 <- tidy(dth_lag_model2)
+summary_model3 <- tidy(dth_lag_model3)
+summary_model4 <- tidy(dth_lag_model4)
+
+
+confint_model1 <- confint(dth_lag_model1)
+confint_model2 <- confint(dth_lag_model2)
+confint_model3 <- confint(dth_lag_model3)
+confint_model4 <- confint(dth_lag_model4)
+
+extract_data <- function(summary_model, confint_model) {
+  confint_df <- as.data.frame(confint_model)
+  names(confint_df) <- c("conf.low", "conf.high")
+  confint_df$term <- rownames(confint_df)
+  
+  data <- summary_model %>%
+    dplyr::select(term, estimate, std.error, p.value) %>%
+    dplyr::left_join(confint_df, by = "term")
+  return(data)
+}
+
+data_model1 <- extract_data(summary_model1, confint_model1)
+data_model2 <- extract_data(summary_model2, confint_model2)
+data_model3 <- extract_data(summary_model3, confint_model3)
+data_model4 <- extract_data(summary_model4, confint_model4)
+
+# Add a new column to each data frame to identify the source
+data_model1$Label <- '1-Unadjusted COVID Death 1-Month Lag'
+data_model2$Label <- '3-Adjusted COVID Death 1-Month Lag'
+data_model3$Label <- '2-Unadjusted COVID Death 2-Month Lag'
+data_model4$Label <- '4-Adjusted COVID Death 2-Month Lag'
+
+# Combine the data frames
+combined_data <- bind_rows(data_model1, data_model2, data_model3, data_model4)
+
+# Split combined_data into a list of data frames based on the label
+split_data <- split(combined_data, combined_data$Label)
+
+# Print each data frame with its label
+lapply(names(split_data), function(name) {
+  cat("Table for:", name, "\n")
+  print(split_data[[name]][, -ncol(split_data[[name]])], n = 40) # Exclude the Label column from printing
+  cat("\n") # Add a newline for better readability between tables
+})
+
+
+```
+
+### Spatial Error Model
+
+```{r, spatial error model}
+# Spatial error model
+error_model1 <- errorsarlm(formula1, data = data, listw = weights)
+#summary(error_model1)
+
+error_model2 <- errorsarlm(formula2, data=data, listw=weights)
+#summary(error_model2)
+
+error_model3 <- errorsarlm(formula3, data = data, listw = weights)
+#summary(error_model3)
+
+error_model4 <- errorsarlm(formula4, data = data, listw = weights)
+#summary(error_model4)
+
+# Extract model summaries using broom.mixed
+summary_model1 <- tidy(error_model1)
+summary_model2 <- tidy(error_model2)
+summary_model3 <- tidy(error_model3)
+summary_model4 <- tidy(error_model4)
+
+
+confint_model1 <- confint(error_model1)
+confint_model2 <- confint(error_model2)
+confint_model3 <- confint(error_model3)
+confint_model4 <- confint(error_model4)
+
+extract_data <- function(summary_model, confint_model) {
+  confint_df <- as.data.frame(confint_model)
+  names(confint_df) <- c("conf.low", "conf.high")
+  confint_df$term <- rownames(confint_df)
+  
+  data <- summary_model %>%
+    dplyr::select(term, estimate, std.error, p.value) %>%
+    dplyr::left_join(confint_df, by = "term")
+  return(data)
+}
+
+data_model1 <- extract_data(summary_model1, confint_model1)
+data_model2 <- extract_data(summary_model2, confint_model2)
+data_model3 <- extract_data(summary_model3, confint_model3)
+data_model4 <- extract_data(summary_model4, confint_model4)
+
+# Add a new column to each data frame to identify the source
+data_model1$Label <- '1-Unadjusted COVID Incidence 1-Month Lag'
+data_model2$Label <- '3-Adjusted COVID Incidence 1-Month Lag'
+data_model3$Label <- '2-Unadjusted COVID Incidence 2-Month Lag'
+data_model4$Label <- '4-Adjusted COVID Incidence 2-Month Lag'
+
+# Combine the data frames
+combined_data <- bind_rows(data_model1, data_model2, data_model3, data_model4)
+
+# Split combined_data into a list of data frames based on the label
+split_data <- split(combined_data, combined_data$Label)
+
+# Print each data frame with its label
+lapply(names(split_data), function(name) {
+  cat("Table for:", name, "\n")
+  print(split_data[[name]][, -ncol(split_data[[name]])], n = 40) # Exclude the Label column from printing
+  cat("\n") # Add a newline for better readability between tables
+})
+
+
+####
+
+
+##
+# Spatial error model for death
+error_model1 <- errorsarlm(dth_formula1, data = data, listw = weights)
+#summary(error_model1)
+
+error_model2 <- errorsarlm(dth_formula2, data=data, listw=weights)
+#summary(error_model2)
+
+error_model3 <- errorsarlm(dth_formula3, data = data, listw = weights)
+#summary(error_model3)
+
+error_model4 <- errorsarlm(dth_formula4, data = data, listw = weights)
+#summary(error_model4)
+
+
+```
+
+
