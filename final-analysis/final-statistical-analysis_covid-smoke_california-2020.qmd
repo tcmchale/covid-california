@@ -49,8 +49,6 @@ library(spdep)
 library(spatialreg)
 ```
 
-Sys.setenv(SHINY_PROGRESS_BAR = "none")
-
 # Statistical Analysis
 
 ## Linear Mixed Effects Regression
