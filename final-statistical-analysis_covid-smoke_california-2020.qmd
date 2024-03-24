@@ -1,0 +1,679 @@
+---
+title: "California Smoke Exposure and COVID Statistical Analysis"
+format: html
+editor: visual
+echo: false
+toc: true
+---
+
+```{r, echo = FALSE, include=FALSE}
+library(dplyr)
+library(stringr)
+library(tidyr)
+library(tidycensus)
+library(sf)
+library(ggplot2)
+library(scales)
+library(maps)
+library(mapdata)
+library(ggmap)
+library(ggspatial)
+library(rnaturalearth)
+library(rnaturalearthdata)
+library(tidyverse)
+library(tigris)
+library(plotly)
+library(mapproj)
+library(ggtext)
+library(ggrepel)
+library(gstat)
+library(knitr)
+library(rgdal)
+library(raster)
+library(leaflet)
+library(leafem)
+library(rgeos)
+library(mapview)
+library(htmltools)
+library(RColorBrewer)
+library(viridis)
+library(automap)
+library(lme4)
+library(lmerTest)
+library(stargazer)
+library(broom.mixed)
+library(googleway)
+library(kableExtra)
+library(splines)
+library(spdep)
+library(spatialreg)
+```
+
+Sys.setenv(SHINY_PROGRESS_BAR = "none")
+
+# Statistical Analysis
+
+## Linear Mixed Effects Regression
+
+### Univariate
+```{r, univariate}
+data <- st_read("~/Desktop/Wildfire-fungi-project/repository/smoke-infections/shapefiles/final/final_dataset_covid_smoke_2020.shp")
+
+#Build models adjust smoke so that we measure change per 10µg/m^3 of PM2.5
+model_1mo <- lmer(cvd_n_1 ~ I(smoke / 10) + (1 | NAME), data = data)
+model_2mo <- lmer(cvd_n_2 ~ I(smoke / 10) + (1 | NAME), data = data)
+
+
+# Extract model summaries using broom.mixed
+summary_1mo <- tidy(model_1mo)
+summary_2mo <- tidy(model_2mo)
+
+# Function to Extract relevant information from model
+extract_data <- function(summary_data) {
+  summary_data %>%
+    dplyr::filter(term == "I(smoke/10)") %>%  
+    dplyr::mutate(
+      estimate = round(estimate, 3),
+      p_value = round(p.value, 4),
+      t_value_95 = qt(0.975, df),
+      lower_95 = round(estimate - (t_value_95 * std.error), 2),
+      upper_95 = round(estimate + (t_value_95 * std.error), 2)
+    ) %>%
+    dplyr::select(estimate, lower_95, upper_95, p_value)
+}
+
+# Extract data
+data_1mo <- extract_data(summary_1mo)
+data_2mo <- extract_data(summary_2mo)
+
+# Combine into a single dataframe
+combined_data <- bind_rows(data_1mo, data_2mo)
+combined_data <- combined_data %>%
+  mutate(Lag_Period = c("1 Month", "2 Months"))%>%
+  dplyr::select(Lag_Period, everything())
+
+# Print the combined table
+table1 <- kable(combined_data, 
+      caption = "Univariate LME Model of Smoke on COVID-19 Incidence") %>%
+  kable_styling()
+table1
+
+#linear mixed effect  with smoke factor
+model1 <- lmer(dth_n_1 ~ I(smoke/10) + (1 | NAME), data = data)
+#summary(model1)
+model2 <- lmer(dth_n_2 ~ I(smoke/10) + (1|NAME) , data=data)
+
+# Extract model summaries using broom.mixed
+summary_model1 <- tidy(model1)
+summary_model2 <- tidy(model2)
+
+# Extract data
+data_1mo <- extract_data(summary_model1)
+data_2mo <- extract_data(summary_model2)
+
+#combine data
+combined_data <- bind_rows(data_1mo, data_2mo)
+combined_data <- combined_data %>%
+  mutate(Lag_Period = c("1 Month", "2 Months")) %>%
+  dplyr::select(Lag_Period, everything())
+
+# Print the combined table
+table2 <- kable(combined_data, 
+      caption = "Univariate LME Model of Smoke on COVID-19 Death") %>%
+  kable_styling()
+table2
+
+```
+### Multivariate
+```{r, multivariate}
+
+
+
+# Converting month to a continuous variable
+# Convert month names to lowercase to ensure consistency
+data$Month <- tolower(data$Month)
+
+# Map month names to numbers
+month_map <- setNames(1:12, tolower(month.abb))
+
+# Apply the mapping to the 'Month' column
+data$Month_Num <- sapply(data$Month, function(m) month_map[m])
+
+# Now 'Month_Num' can be used as a continuous variable in your model
+
+
+
+#standardize predictors
+data$mdn_ncm <- scale(data$mdn_ncm)
+data$avg_tmp <- scale(data$avg_tmp)
+data$precip <- scale(data$precip)
+data$ALWAYS <- scale(data$ALWAYS)
+data$otdr_l_ <- scale(data$otdr_l_)
+data$elevatn <- scale(data$elevatn)
+
+#model for covid incidence
+model1 <- lmer(cvd_n_1 ~ I(smoke/10) + mdn_ncm + otdr_l_ + avg_tmp + precip + 
+                 elevatn + 
+                 ALWAYS 
+               + Mnth_Cd
+               + (1|NAME), data = data)
+summary(model1)
+
+
+
+
+#model for death
+model2 <- lmer(dth_n_1 ~ I(smoke/10) + mdn_ncm + otdr_l_ + avg_tmp + precip
+               + elevatn 
+                 + ALWAYS  
+                 +Mnth_Cd
+               + (1|NAME), data = data)
+summary(model2)
+
+#model for 2-month lag covid incidence
+model3 <- lmer(cvd_n_2 ~ I(smoke/10) + mdn_ncm + otdr_l_ + avg_tmp + precip + ALWAYS + elevatn
+               + Mnth_Cd 
+               + (1|NAME), data = data)
+summary(model3)
+
+#model for 2-month lag covid death
+model4 <- lmer(dth_n_2 ~ I(smoke/10) + mdn_ncm + otdr_l_ + avg_tmp + precip + ALWAYS + elevatn
+               + Mnth_Cd 
+               + (1|NAME), data = data)
+summary(model4)
+
+# Extract model summaries using broom.mixed
+summary_model1 <- tidy(model1)
+summary_model2 <- tidy(model2)
+summary_model3 <- tidy(model3)
+summary_model4 <- tidy(model4)
+
+
+confint_model1 <- confint(model1)
+confint_model2 <- confint(model2)
+confint_model3 <- confint(model3)
+confint_model4 <- confint(model4)
+
+extract_data <- function(summary_model, confint_model) {
+  confint_df <- as.data.frame(confint_model)
+  names(confint_df) <- c("conf.low", "conf.high")
+  confint_df$term <- rownames(confint_df)
+  
+  data <- summary_model %>%
+    dplyr::select(term, estimate, std.error, p.value) %>%
+    dplyr::left_join(confint_df, by = "term")
+  return(data)
+}
+
+data_model1 <- extract_data(summary_model1, confint_model1)
+data_model2 <- extract_data(summary_model2, confint_model2)
+data_model3 <- extract_data(summary_model3, confint_model3)
+data_model4 <- extract_data(summary_model4, confint_model4)
+
+
+# Add a new column to each data frame to identify the source
+data_model1$Label <- '1-COVID Incidence 1-Month Lag'
+data_model2$Label <- '3-COVID Death 1-Month Lag'
+data_model3$Label <- '2-COVID Incidence 2-Month Lag'
+data_model4$Label <- '4-COVID Death 2-Month Lag'
+
+# Combine the data frames
+combined_data <- bind_rows(data_model1, data_model2, data_model3, data_model4)
+
+# Split combined_data into a list of data frames based on the label
+split_data <- split(combined_data, combined_data$Label)
+
+# Print each data frame with its label
+lapply(names(split_data), function(name) {
+  cat("Table for:", name, "\n")
+  print(split_data[[name]][, -ncol(split_data[[name]])], n = 40) # Exclude the Label column from printing
+  cat("\n") # Add a newline for better readability between tables
+})
+
+```
+
+## Spatial Auto-regressive Model
+
+### Spatial Lag Model
+
+```{r, spatial lag model}
+# Identify and remove empty geometries
+empty_geoms <- st_is_empty(data)
+if (any(empty_geoms)) {
+  data <- data[!empty_geoms, ]
+  print("Empty geometries removed")
+} else {
+  print("No empty geometries found")
+}
+
+# Create a spatial weights matrix (neighbors is redundant as this is already done above)
+neighbors <- poly2nb(data)
+weights <- nb2listw(neighbors, style = "W")
+
+#spatal lag model
+formula1 <- cvd_n_1 ~ I(smoke/10)
+formula2 <- cvd_n_1 ~ I(smoke/10) + mdn_ncm + otdr_l_ + avg_tmp + precip + Mnth_Cd + ALWAYS + elevatn
+
+lag_model1 <- lagsarlm(formula1, data = data, listw = weights)
+summary(lag_model1)
+
+lag_model2 <- lagsarlm(formula2, data = data, listw = weights)
+summary(lag_model2)
+
+formula3 <- cvd_n_2 ~ I(smoke/10)
+formula4 <- cvd_n_2 ~ I(smoke/10) + mdn_ncm + otdr_l_ + avg_tmp + precip + elevatn + ALWAYS + Mnth_Cd
+
+lag_model3 <- lagsarlm(formula3, data = data, listw = weights)
+#summary(lag_model3)
+
+lag_model4 <- lagsarlm(formula4, data = data, listw = weights)
+#summary(lag_model4)
+
+
+
+# Extract main model summaries using broom.mixed
+summary_model1 <- tidy(lag_model1)
+summary_model2 <- tidy(lag_model2)
+summary_model3 <- tidy(lag_model3)
+summary_model4 <- tidy(lag_model4)
+
+#calculate conf intervals
+confint_model1 <- confint(lag_model1)
+confint_model2 <- confint(lag_model2)
+confint_model3 <- confint(lag_model3)
+confint_model4 <- confint(lag_model4)
+
+#extract data function
+extract_data <- function(summary_model, confint_model) {
+  confint_df <- as.data.frame(confint_model)
+  names(confint_df) <- c("conf.low", "conf.high")
+  confint_df$term <- rownames(confint_df)
+  
+  data <- summary_model %>%
+    dplyr::select(term, estimate, std.error, p.value) %>%
+    dplyr::left_join(confint_df, by = "term")
+  return(data)
+}
+
+#extract data using function
+data_model1 <- extract_data(summary_model1, confint_model1)
+data_model2 <- extract_data(summary_model2, confint_model2)
+data_model3 <- extract_data(summary_model3, confint_model3)
+data_model4 <- extract_data(summary_model4, confint_model4)
+
+# Add a new column to each data frame to identify the source
+data_model1$Label <- '1-Unadjusted COVID Incidence 1-Month Lag'
+data_model2$Label <- '3-Adjusted COVID Incidence 1-Month Lag'
+data_model3$Label <- '2-Unadjusted COVID Incidence 2-Month Lag'
+data_model4$Label <- '4-Adjusted COVID Incidence 2-Month Lag'
+
+# Combine the data frames
+combined_data <- bind_rows(data_model1, data_model2, data_model3, data_model4)
+
+# Split combined_data into a list of data frames based on the label
+split_data <- split(combined_data, combined_data$Label)
+
+# Print each data frame with its label
+lapply(names(split_data), function(name){
+  cat("Table for:", name, "\n")
+  print(split_data[[name]][, -ncol(split_data[[name]])], n = 40) # Exclude the Label column from printing
+  cat("\n") # Add a newline for better readability between tables
+})
+
+#spatial lag model for death
+dth_formula1 <- dth_n_1 ~ I(smoke/10)
+dth_formula2 <- dth_n_1 ~ I(smoke/10) + mdn_ncm + otdr_l_ + avg_tmp + precip + elevatn + ALWAYS + Mnth_Cd
+
+dth_lag_model1 <- lagsarlm(dth_formula1, data = data, listw = weights)
+#summary(dth_lag_model1)
+
+dth_lag_model2 <- lagsarlm(dth_formula2, data = data, listw = weights)
+#summary(dth_lag_model2)
+
+dth_formula3 <- dth_n_2 ~ I(smoke/10)
+dth_formula4 <- dth_n_2 ~ I(smoke/10) + mdn_ncm + otdr_l_ + avg_tmp + precip + elevatn + ALWAYS + Mnth_Cd
+
+dth_lag_model3 <- lagsarlm(dth_formula3, data = data, listw = weights)
+#summary(dth_lag_model3)
+
+dth_lag_model4 <- lagsarlm(dth_formula4, data = data, listw = weights)
+#summary(dth_lag_model4)
+
+
+
+# Extract model summaries using broom.mixed
+summary_model1 <- tidy(dth_lag_model1)
+summary_model2 <- tidy(dth_lag_model2)
+summary_model3 <- tidy(dth_lag_model3)
+summary_model4 <- tidy(dth_lag_model4)
+
+
+confint_model1 <- confint(dth_lag_model1)
+confint_model2 <- confint(dth_lag_model2)
+confint_model3 <- confint(dth_lag_model3)
+confint_model4 <- confint(dth_lag_model4)
+
+extract_data <- function(summary_model, confint_model) {
+  confint_df <- as.data.frame(confint_model)
+  names(confint_df) <- c("conf.low", "conf.high")
+  confint_df$term <- rownames(confint_df)
+  
+  data <- summary_model %>%
+    dplyr::select(term, estimate, std.error, p.value) %>%
+    dplyr::left_join(confint_df, by = "term")
+  return(data)
+}
+
+data_model1 <- extract_data(summary_model1, confint_model1)
+data_model2 <- extract_data(summary_model2, confint_model2)
+data_model3 <- extract_data(summary_model3, confint_model3)
+data_model4 <- extract_data(summary_model4, confint_model4)
+
+# Add a new column to each data frame to identify the source
+data_model1$Label <- '1-Unadjusted COVID Death 1-Month Lag'
+data_model2$Label <- '3-Adjusted COVID Death 1-Month Lag'
+data_model3$Label <- '2-Unadjusted COVID Death 2-Month Lag'
+data_model4$Label <- '4-Adjusted COVID Death 2-Month Lag'
+
+# Combine the data frames
+combined_data <- bind_rows(data_model1, data_model2, data_model3, data_model4)
+
+# Split combined_data into a list of data frames based on the label
+split_data <- split(combined_data, combined_data$Label)
+
+# Print each data frame with its label
+lapply(names(split_data), function(name) {
+  cat("Table for:", name, "\n")
+  print(split_data[[name]][, -ncol(split_data[[name]])], n = 40) # Exclude the Label column from printing
+  cat("\n") # Add a newline for better readability between tables
+})
+
+
+```
+
+### Spatial Error Model
+
+```{r, spatial error model}
+# Spatial error model
+error_model1 <- errorsarlm(formula1, data = data, listw = weights)
+#summary(error_model1)
+
+error_model2 <- errorsarlm(formula2, data=data, listw=weights)
+#summary(error_model2)
+
+error_model3 <- errorsarlm(formula3, data = data, listw = weights)
+#summary(error_model3)
+
+error_model4 <- errorsarlm(formula4, data = data, listw = weights)
+#summary(error_model4)
+
+# Extract model summaries using broom.mixed
+summary_model1 <- tidy(error_model1)
+summary_model2 <- tidy(error_model2)
+summary_model3 <- tidy(error_model3)
+summary_model4 <- tidy(error_model4)
+
+
+confint_model1 <- confint(error_model1)
+confint_model2 <- confint(error_model2)
+confint_model3 <- confint(error_model3)
+confint_model4 <- confint(error_model4)
+
+extract_data <- function(summary_model, confint_model) {
+  confint_df <- as.data.frame(confint_model)
+  names(confint_df) <- c("conf.low", "conf.high")
+  confint_df$term <- rownames(confint_df)
+  
+  data <- summary_model %>%
+    dplyr::select(term, estimate, std.error, p.value) %>%
+    dplyr::left_join(confint_df, by = "term")
+  return(data)
+}
+
+data_model1 <- extract_data(summary_model1, confint_model1)
+data_model2 <- extract_data(summary_model2, confint_model2)
+data_model3 <- extract_data(summary_model3, confint_model3)
+data_model4 <- extract_data(summary_model4, confint_model4)
+
+# Add a new column to each data frame to identify the source
+data_model1$Label <- '1-Unadjusted COVID Incidence 1-Month Lag'
+data_model2$Label <- '3-Adjusted COVID Incidence 1-Month Lag'
+data_model3$Label <- '2-Unadjusted COVID Incidence 2-Month Lag'
+data_model4$Label <- '4-Adjusted COVID Incidence 2-Month Lag'
+
+# Combine the data frames
+combined_data <- bind_rows(data_model1, data_model2, data_model3, data_model4)
+
+# Split combined_data into a list of data frames based on the label
+split_data <- split(combined_data, combined_data$Label)
+
+# Print each data frame with its label
+lapply(names(split_data), function(name) {
+  cat("Table for:", name, "\n")
+  print(split_data[[name]][, -ncol(split_data[[name]])], n = 40) # Exclude the Label column from printing
+  cat("\n") # Add a newline for better readability between tables
+})
+
+
+####
+#spatial lag model for death
+dth_formula1 <- dth_n_1 ~ I(smoke/10)
+dth_formula2 <- dth_n_1 ~ I(smoke/10) + mdn_ncm + otdr_l_ + avg_tmp + precip + elevatn + ALWAYS + Mnth_Cd
+
+dth_lag_model1 <- errorsarlm(dth_formula1, data = data, listw = weights)
+#summary(dth_lag_model1)
+
+dth_lag_model2 <- errorsarlm(dth_formula2, data = data, listw = weights)
+#summary(dth_lag_model2)
+
+dth_formula3 <- dth_n_2 ~ I(smoke/10)
+dth_formula4 <- dth_n_2 ~ I(smoke/10) + mdn_ncm + otdr_l_ + avg_tmp + precip + elevatn + ALWAYS + Mnth_Cd
+
+dth_lag_model3 <- errorsarlm(dth_formula3, data = data, listw = weights)
+#summary(dth_lag_model3)
+
+dth_lag_model4 <- errorsarlm(dth_formula4, data = data, listw = weights)
+#summary(dth_lag_model4)
+
+
+
+# Extract model summaries using broom.mixed
+summary_model1 <- tidy(dth_lag_model1)
+summary_model2 <- tidy(dth_lag_model2)
+summary_model3 <- tidy(dth_lag_model3)
+summary_model4 <- tidy(dth_lag_model4)
+
+
+confint_model1 <- confint(dth_lag_model1)
+confint_model2 <- confint(dth_lag_model2)
+confint_model3 <- confint(dth_lag_model3)
+confint_model4 <- confint(dth_lag_model4)
+
+extract_data <- function(summary_model, confint_model) {
+  confint_df <- as.data.frame(confint_model)
+  names(confint_df) <- c("conf.low", "conf.high")
+  confint_df$term <- rownames(confint_df)
+  
+  data <- summary_model %>%
+    dplyr::select(term, estimate, std.error, p.value) %>%
+    dplyr::left_join(confint_df, by = "term")
+  return(data)
+}
+
+data_model1 <- extract_data(summary_model1, confint_model1)
+data_model2 <- extract_data(summary_model2, confint_model2)
+data_model3 <- extract_data(summary_model3, confint_model3)
+data_model4 <- extract_data(summary_model4, confint_model4)
+
+# Add a new column to each data frame to identify the source
+data_model1$Label <- '1-Unadjusted COVID Death 1-Month Lag'
+data_model2$Label <- '3-Adjusted COVID Death 1-Month Lag'
+data_model3$Label <- '2-Unadjusted COVID Death 2-Month Lag'
+data_model4$Label <- '4-Adjusted COVID Death 2-Month Lag'
+
+# Combine the data frames
+combined_data <- bind_rows(data_model1, data_model2, data_model3, data_model4)
+
+# Split combined_data into a list of data frames based on the label
+split_data <- split(combined_data, combined_data$Label)
+
+# Print each data frame with its label
+lapply(names(split_data), function(name) {
+  cat("Table for:", name, "\n")
+  print(split_data[[name]][, -ncol(split_data[[name]])], n = 40) # Exclude the Label column from printing
+  cat("\n") # Add a newline for better readability between tables
+})
+
+##
+# Spatial error model for death
+error_model1 <- errorsarlm(dth_formula1, data = data, listw = weights)
+#summary(error_model1)
+
+error_model2 <- errorsarlm(dth_formula2, data=data, listw=weights)
+#summary(error_model2)
+
+error_model3 <- errorsarlm(dth_formula3, data = data, listw = weights)
+#summary(error_model3)
+
+error_model4 <- errorsarlm(dth_formula4, data = data, listw = weights)
+#summary(error_model4)
+
+
+```
+
+### Unadjusted Models of Confounders
+
+```{r, univariate analysis of confounders}
+
+
+##### univariate analysis of confounders
+formula5 <- cvd_n_1 ~ I(mdn_ncm/1000)
+formula6 <- cvd_n_1 ~ otdr_l_
+formula7 <- cvd_n_1 ~ avg_tmp
+formula8 <- cvd_n_1 ~ precip
+formula9 <- cvd_n_1 ~ elevatn
+formula10 <- cvd_n_1 ~ ALWAYS
+formula11 <- cvd_n_1 ~ Mnth_Cd
+
+lag_model5 <- lagsarlm(formula5, data = data, listw = weights)
+summary(lag_model5)
+confint(lag_model5)
+lag_model6 <- lagsarlm(formula6, data = data, listw = weights)
+summary(lag_model6)
+confint(lag_model6)
+lag_model7 <- lagsarlm(formula7, data = data, listw = weights)
+summary(lag_model7)
+confint(lag_model7)
+lag_model8 <- lagsarlm(formula8, data = data, listw = weights)
+summary(lag_model8)
+confint(lag_model8)
+lag_model9 <- lagsarlm(formula9, data = data, listw = weights)
+summary(lag_model9)
+confint(lag_model9)
+lag_model10 <- lagsarlm(formula10, data = data, listw = weights)
+summary(lag_model10)
+confint(lag_model10)
+lag_model11 <- lagsarlm(formula11, data = data, listw = weights)
+summary(lag_model11)
+confint(lag_model11)
+
+
+
+##### univariate analysis of confounders
+dth_formula5 <- dth_n_1 ~ I(mdn_ncm/1000)
+dth_formula6 <- dth_n_1 ~ otdr_l_
+dth_formula7 <- dth_n_1 ~ avg_tmp
+dth_formula8 <- dth_n_1 ~ precip
+dth_formula9 <- dth_n_1 ~ elevatn
+dth_formula10 <- dth_n_1 ~ ALWAYS
+dth_formula11 <- dth_n_1 ~ Mnth_Cd
+
+dth_lag_model5 <- lagsarlm(dth_formula5, data = data, listw = weights)
+summary(dth_lag_model5)
+confint(dth_lag_model5)
+dth_lag_model6 <- lagsarlm(dth_formula6, data = data, listw = weights)
+summary(dth_lag_model6)
+confint(dth_lag_model6)
+dth_lag_model7 <- lagsarlm(dth_formula7, data = data, listw = weights)
+summary(dth_lag_model7)
+confint(dth_lag_model7)
+dth_lag_model8 <- lagsarlm(dth_formula8, data = data, listw = weights)
+summary(dth_lag_model8)
+confint(dth_lag_model8)
+dth_lag_model9 <- lagsarlm(dth_formula9, data = data, listw = weights)
+summary(dth_lag_model9)
+confint(dth_lag_model9)
+dth_lag_model10 <- lagsarlm(dth_formula10, data = data, listw = weights)
+summary(dth_lag_model10)
+confint(dth_lag_model10)
+dth_lag_model11 <- lagsarlm(dth_formula11, data = data, listw = weights)
+summary(dth_lag_model11)
+confint(dth_lag_model11)
+
+
+##################
+# 2 month lag
+
+
+##### univariate analysis of confounders
+formula5 <- cvd_n_2 ~ I(mdn_ncm/1000)
+formula6 <- cvd_n_2 ~ otdr_l_
+formula7 <- cvd_n_2 ~ avg_tmp
+formula8 <- cvd_n_2 ~ precip
+formula9 <- cvd_n_2 ~ elevatn
+formula10 <- cvd_n_2 ~ ALWAYS
+formula11 <- cvd_n_2 ~ Mnth_Cd
+
+lag_model5 <- lagsarlm(formula5, data = data, listw = weights)
+summary(lag_model5)
+confint(lag_model5)
+lag_model6 <- lagsarlm(formula6, data = data, listw = weights)
+summary(lag_model6)
+confint(lag_model6)
+lag_model7 <- lagsarlm(formula7, data = data, listw = weights)
+summary(lag_model7)
+confint(lag_model7)
+lag_model8 <- lagsarlm(formula8, data = data, listw = weights)
+summary(lag_model8)
+confint(lag_model8)
+lag_model9 <- lagsarlm(formula9, data = data, listw = weights)
+summary(lag_model9)
+confint(lag_model9)
+lag_model10 <- lagsarlm(formula10, data = data, listw = weights)
+summary(lag_model10)
+confint(lag_model10)
+lag_model11 <- lagsarlm(formula11, data = data, listw = weights)
+summary(lag_model11)
+confint(lag_model11)
+
+
+##### univariate analysis of confounders
+dth_formula5 <- dth_n_2 ~ I(mdn_ncm/1000)
+dth_formula6 <- dth_n_2 ~ otdr_l_
+dth_formula7 <- dth_n_2 ~ avg_tmp
+dth_formula8 <- dth_n_2 ~ precip
+dth_formula9 <- dth_n_2 ~ elevatn
+dth_formula10 <- dth_n_2 ~ ALWAYS
+dth_formula11 <- dth_n_2 ~ Mnth_Cd
+
+dth_lag_model5 <- lagsarlm(dth_formula5, data = data, listw = weights)
+summary(dth_lag_model5)
+confint(dth_lag_model5)
+dth_lag_model6 <- lagsarlm(dth_formula6, data = data, listw = weights)
+summary(dth_lag_model6)
+confint(dth_lag_model6)
+dth_lag_model7 <- lagsarlm(dth_formula7, data = data, listw = weights)
+summary(dth_lag_model7)
+confint(dth_lag_model7)
+dth_lag_model8 <- lagsarlm(dth_formula8, data = data, listw = weights)
+summary(dth_lag_model8)
+confint(dth_lag_model8)
+dth_lag_model9 <- lagsarlm(dth_formula9, data = data, listw = weights)
+summary(dth_lag_model9)
+confint(dth_lag_model9)
+dth_lag_model10 <- lagsarlm(dth_formula10, data = data, listw = weights)
+summary(dth_lag_model10)
+confint(dth_lag_model10)
+dth_lag_model11 <- lagsarlm(dth_formula11, data = data, listw = weights)
+summary(dth_lag_model11)
+```

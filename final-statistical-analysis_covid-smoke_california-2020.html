@@ -1,0 +1,1819 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.2.335">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+
+<title>California Smoke Exposure and COVID Statistical Analysis</title>
+<style>
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1.6em;
+  vertical-align: middle;
+}
+</style>
+
+
+<script src="final-statistical-analysis_covid-smoke_california-2020_files/libs/clipboard/clipboard.min.js"></script>
+<script src="final-statistical-analysis_covid-smoke_california-2020_files/libs/quarto-html/quarto.js"></script>
+<script src="final-statistical-analysis_covid-smoke_california-2020_files/libs/quarto-html/popper.min.js"></script>
+<script src="final-statistical-analysis_covid-smoke_california-2020_files/libs/quarto-html/tippy.umd.min.js"></script>
+<script src="final-statistical-analysis_covid-smoke_california-2020_files/libs/quarto-html/anchor.min.js"></script>
+<link href="final-statistical-analysis_covid-smoke_california-2020_files/libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="final-statistical-analysis_covid-smoke_california-2020_files/libs/quarto-html/quarto-syntax-highlighting.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="final-statistical-analysis_covid-smoke_california-2020_files/libs/bootstrap/bootstrap.min.js"></script>
+<link href="final-statistical-analysis_covid-smoke_california-2020_files/libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="final-statistical-analysis_covid-smoke_california-2020_files/libs/bootstrap/bootstrap.min.css" rel="stylesheet" id="quarto-bootstrap" data-mode="light">
+
+<script src="final-statistical-analysis_covid-smoke_california-2020_files/libs/kePrint-0.0.1/kePrint.js"></script>
+<link href="final-statistical-analysis_covid-smoke_california-2020_files/libs/lightable-0.0.1/lightable.css" rel="stylesheet">
+
+
+</head>
+
+<body>
+
+<div id="quarto-content" class="page-columns page-rows-contents page-layout-article">
+<div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+  <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">Table of contents</h2>
+   
+  <ul>
+  <li><a href="#statistical-analysis" id="toc-statistical-analysis" class="nav-link active" data-scroll-target="#statistical-analysis">Statistical Analysis</a>
+  <ul class="collapse">
+  <li><a href="#linear-mixed-effects-regression" id="toc-linear-mixed-effects-regression" class="nav-link" data-scroll-target="#linear-mixed-effects-regression">Linear Mixed Effects Regression</a>
+  <ul class="collapse">
+  <li><a href="#univariate" id="toc-univariate" class="nav-link" data-scroll-target="#univariate">Univariate</a></li>
+  <li><a href="#multivariate" id="toc-multivariate" class="nav-link" data-scroll-target="#multivariate">Multivariate</a></li>
+  </ul></li>
+  <li><a href="#spatial-auto-regressive-model" id="toc-spatial-auto-regressive-model" class="nav-link" data-scroll-target="#spatial-auto-regressive-model">Spatial Auto-regressive Model</a>
+  <ul class="collapse">
+  <li><a href="#spatial-lag-model" id="toc-spatial-lag-model" class="nav-link" data-scroll-target="#spatial-lag-model">Spatial Lag Model</a></li>
+  <li><a href="#spatial-error-model" id="toc-spatial-error-model" class="nav-link" data-scroll-target="#spatial-error-model">Spatial Error Model</a></li>
+  <li><a href="#unadjusted-models-of-confounders" id="toc-unadjusted-models-of-confounders" class="nav-link" data-scroll-target="#unadjusted-models-of-confounders">Unadjusted Models of Confounders</a></li>
+  </ul></li>
+  </ul></li>
+  </ul>
+</nav>
+</div>
+<main class="content" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<h1 class="title">California Smoke Exposure and COVID Statistical Analysis</h1>
+</div>
+
+
+
+<div class="quarto-title-meta">
+
+    
+  
+    
+  </div>
+  
+
+</header>
+
+<p>Sys.setenv(SHINY_PROGRESS_BAR = “none”)</p>
+<section id="statistical-analysis" class="level1">
+<h1>Statistical Analysis</h1>
+<section id="linear-mixed-effects-regression" class="level2">
+<h2 class="anchored" data-anchor-id="linear-mixed-effects-regression">Linear Mixed Effects Regression</h2>
+<section id="univariate" class="level3">
+<h3 class="anchored" data-anchor-id="univariate">Univariate</h3>
+<div class="cell">
+<div class="cell-output cell-output-stdout">
+<pre><code>Reading layer `final_dataset_covid_smoke_2020' from data source 
+  `/Users/thomasmchale/Desktop/Wildfire-fungi-project/repository/smoke-infections/shapefiles/final/final_dataset_covid_smoke_2020.shp' 
+  using driver `ESRI Shapefile'
+replacing null geometries with empty geometries
+Simple feature collection with 696 features and 54 fields (with 116 geometries empty)
+Geometry type: GEOMETRY
+Dimension:     XY
+Bounding box:  xmin: -124.4096 ymin: 32.5342 xmax: -114.1344 ymax: 42.00952
+Geodetic CRS:  WGS 84</code></pre>
+</div>
+<div class="cell-output-display">
+
+<table class="table" style="margin-left: auto; margin-right: auto;">
+<caption>Univariate LME Model of Smoke on COVID-19 Incidence</caption>
+ <thead>
+  <tr>
+   <th style="text-align:left;"> Lag_Period </th>
+   <th style="text-align:right;"> estimate </th>
+   <th style="text-align:right;"> lower_95 </th>
+   <th style="text-align:right;"> upper_95 </th>
+   <th style="text-align:right;"> p_value </th>
+  </tr>
+ </thead>
+<tbody>
+  <tr>
+   <td style="text-align:left;"> 1 Month </td>
+   <td style="text-align:right;"> 235.637 </td>
+   <td style="text-align:right;"> 192.45 </td>
+   <td style="text-align:right;"> 278.82 </td>
+   <td style="text-align:right;"> 0 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> 2 Months </td>
+   <td style="text-align:right;"> 128.263 </td>
+   <td style="text-align:right;"> 81.19 </td>
+   <td style="text-align:right;"> 175.33 </td>
+   <td style="text-align:right;"> 0 </td>
+  </tr>
+</tbody>
+</table>
+
+</div>
+<div class="cell-output-display">
+
+<table class="table" style="margin-left: auto; margin-right: auto;">
+<caption>Univariate LME Model of Smoke on COVID-19 Death</caption>
+ <thead>
+  <tr>
+   <th style="text-align:left;"> Lag_Period </th>
+   <th style="text-align:right;"> estimate </th>
+   <th style="text-align:right;"> lower_95 </th>
+   <th style="text-align:right;"> upper_95 </th>
+   <th style="text-align:right;"> p_value </th>
+  </tr>
+ </thead>
+<tbody>
+  <tr>
+   <td style="text-align:left;"> 1 Month </td>
+   <td style="text-align:right;"> 2.866 </td>
+   <td style="text-align:right;"> 1.98 </td>
+   <td style="text-align:right;"> 3.75 </td>
+   <td style="text-align:right;"> 0.0000 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> 2 Months </td>
+   <td style="text-align:right;"> 0.658 </td>
+   <td style="text-align:right;"> -0.32 </td>
+   <td style="text-align:right;"> 1.63 </td>
+   <td style="text-align:right;"> 0.1847 </td>
+  </tr>
+</tbody>
+</table>
+
+</div>
+</div>
+</section>
+<section id="multivariate" class="level3">
+<h3 class="anchored" data-anchor-id="multivariate">Multivariate</h3>
+<div class="cell">
+<div class="cell-output cell-output-stdout">
+<pre><code>Linear mixed model fit by REML. t-tests use Satterthwaite's method [
+lmerModLmerTest]
+Formula: cvd_n_1 ~ I(smoke/10) + mdn_ncm + otdr_l_ + avg_tmp + precip +  
+    elevatn + ALWAYS + Mnth_Cd + (1 | NAME)
+   Data: data
+
+REML criterion at convergence: 7790.4
+
+Scaled residuals: 
+    Min      1Q  Median      3Q     Max 
+-2.3124 -0.5000 -0.1745  0.2952  7.1655 
+
+Random effects:
+ Groups   Name        Variance Std.Dev.
+ NAME     (Intercept) 113334   336.7   
+ Residual             451567   672.0   
+Number of obs: 493, groups:  NAME, 58
+
+Fixed effects:
+            Estimate Std. Error       df t value Pr(&gt;|t|)    
+(Intercept) -666.008    103.410  359.576  -6.440 3.82e-10 ***
+I(smoke/10)  184.324     21.417  448.358   8.607  &lt; 2e-16 ***
+mdn_ncm      -36.902     75.928   56.005  -0.486 0.628857    
+otdr_l_      -82.787     67.206   58.967  -1.232 0.222900    
+avg_tmp      410.954     99.088   53.382   4.147 0.000121 ***
+precip        62.794     41.121  466.510   1.527 0.127429    
+elevatn      128.885     95.592   51.743   1.348 0.183439    
+ALWAYS        -9.999     62.953   53.991  -0.159 0.874390    
+Mnth_Cd      149.156     11.570  444.082  12.891  &lt; 2e-16 ***
+---
+Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+
+Correlation of Fixed Effects:
+            (Intr) I(/10) mdn_nc otdr__ avg_tm precip elevtn ALWAYS
+I(smoke/10) -0.059                                                 
+mdn_ncm     -0.010  0.045                                          
+otdr_l_      0.006 -0.072  0.551                                   
+avg_tmp     -0.029  0.099  0.362  0.107                            
+precip      -0.114  0.356  0.041 -0.032  0.100                     
+elevatn      0.002  0.040  0.346  0.022  0.791  0.026              
+ALWAYS      -0.008  0.009 -0.318  0.052 -0.327  0.054 -0.137       
+Mnth_Cd     -0.818 -0.213 -0.005 -0.010  0.030  0.081  0.007  0.006</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Linear mixed model fit by REML. t-tests use Satterthwaite's method [
+lmerModLmerTest]
+Formula: dth_n_1 ~ I(smoke/10) + mdn_ncm + otdr_l_ + avg_tmp + precip +  
+    elevatn + ALWAYS + Mnth_Cd + (1 | NAME)
+   Data: data
+
+REML criterion at convergence: 4096
+
+Scaled residuals: 
+    Min      1Q  Median      3Q     Max 
+-3.1622 -0.4403 -0.1067  0.2469  8.9441 
+
+Random effects:
+ Groups   Name        Variance Std.Dev.
+ NAME     (Intercept)  23.94    4.893  
+ Residual             230.84   15.193  
+Number of obs: 493, groups:  NAME, 58
+
+Fixed effects:
+            Estimate Std. Error       df t value Pr(&gt;|t|)    
+(Intercept)  -7.8910     2.1955 436.1780  -3.594 0.000362 ***
+I(smoke/10)   1.9260     0.4810 459.4202   4.004 7.26e-05 ***
+mdn_ncm      -1.6953     1.3499  62.5262  -1.256 0.213813    
+otdr_l_      -1.0743     1.2044  68.0008  -0.892 0.375513    
+avg_tmp      10.3026     1.7486  58.0514   5.892 2.05e-07 ***
+precip       -0.8135     0.9156 479.1758  -0.888 0.374724    
+elevatn       4.8117     1.6786  55.3580   2.866 0.005860 ** 
+ALWAYS        1.9569     1.1134  59.6120   1.758 0.083944 .  
+Mnth_Cd       1.9902     0.2604 452.9938   7.644 1.27e-13 ***
+---
+Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+
+Correlation of Fixed Effects:
+            (Intr) I(/10) mdn_nc otdr__ avg_tm precip elevtn ALWAYS
+I(smoke/10) -0.063                                                 
+mdn_ncm     -0.009  0.057                                          
+otdr_l_      0.022 -0.089  0.553                                   
+avg_tmp     -0.051  0.126  0.363  0.104                            
+precip      -0.124  0.354  0.049 -0.037  0.124                     
+elevatn     -0.006  0.050  0.340  0.023  0.789  0.027              
+ALWAYS      -0.006  0.011 -0.317  0.045 -0.322  0.069 -0.131       
+Mnth_Cd     -0.865 -0.213 -0.005 -0.012  0.035  0.083  0.006  0.007</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Linear mixed model fit by REML. t-tests use Satterthwaite's method [
+lmerModLmerTest]
+Formula: cvd_n_2 ~ I(smoke/10) + mdn_ncm + otdr_l_ + avg_tmp + precip +  
+    ALWAYS + elevatn + Mnth_Cd + (1 | NAME)
+   Data: data
+
+REML criterion at convergence: 7266.5
+
+Scaled residuals: 
+    Min      1Q  Median      3Q     Max 
+-2.0006 -0.5909 -0.2010  0.3207  6.9450 
+
+Random effects:
+ Groups   Name        Variance Std.Dev.
+ NAME     (Intercept)  76886   277.3   
+ Residual             486237   697.3   
+Number of obs: 459, groups:  NAME, 58
+
+Fixed effects:
+            Estimate Std. Error      df t value Pr(&gt;|t|)    
+(Intercept)  -937.05     115.33  412.73  -8.125 5.24e-15 ***
+I(smoke/10)    70.09      22.60  421.41   3.102  0.00205 ** 
+mdn_ncm       -61.87      70.42   60.34  -0.879  0.38307    
+otdr_l_       -52.45      61.66   61.75  -0.851  0.39823    
+avg_tmp       356.78      91.22   56.06   3.911  0.00025 ***
+precip        -51.15      47.09  440.23  -1.086  0.27803    
+ALWAYS         24.06      57.75   56.41   0.417  0.67862    
+elevatn        79.30      87.35   52.98   0.908  0.36803    
+Mnth_Cd       179.30      13.12  417.64  13.662  &lt; 2e-16 ***
+---
+Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+
+Correlation of Fixed Effects:
+            (Intr) I(/10) mdn_nc otdr__ avg_tm precip ALWAYS elevtn
+I(smoke/10) -0.029                                                 
+mdn_ncm      0.012  0.055                                          
+otdr_l_      0.014 -0.092  0.550                                   
+avg_tmp     -0.052  0.132  0.361  0.101                            
+precip       0.001  0.389  0.051 -0.053  0.131                     
+ALWAYS       0.015  0.002 -0.318  0.048 -0.335  0.052              
+elevatn     -0.019  0.052  0.341  0.028  0.790  0.034 -0.138       
+Mnth_Cd     -0.873 -0.220 -0.022 -0.008  0.038 -0.031 -0.011  0.019</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Linear mixed model fit by REML. t-tests use Satterthwaite's method [
+lmerModLmerTest]
+Formula: dth_n_2 ~ I(smoke/10) + mdn_ncm + otdr_l_ + avg_tmp + precip +  
+    ALWAYS + elevatn + Mnth_Cd + (1 | NAME)
+   Data: data
+
+REML criterion at convergence: 3806.9
+
+Scaled residuals: 
+    Min      1Q  Median      3Q     Max 
+-2.5233 -0.4305 -0.1304  0.2444  8.7720 
+
+Random effects:
+ Groups   Name        Variance Std.Dev.
+ NAME     (Intercept)  22.75    4.77   
+ Residual             228.78   15.13   
+Number of obs: 459, groups:  NAME, 58
+
+Fixed effects:
+            Estimate Std. Error       df t value Pr(&gt;|t|)    
+(Intercept) -16.3578     2.4449 428.7878  -6.691 6.96e-11 ***
+I(smoke/10)  -0.3971     0.4882 427.2990  -0.813  0.41643    
+mdn_ncm      -2.3536     1.3726  64.7575  -1.715  0.09119 .  
+otdr_l_      -0.8292     1.2039  67.1387  -0.689  0.49334    
+avg_tmp       9.8865     1.7702  59.2567   5.585 6.18e-07 ***
+precip       -0.7559     1.0129 445.5508  -0.746  0.45590    
+ALWAYS        2.0963     1.1214  60.1576   1.869  0.06645 .  
+elevatn       4.7345     1.6891  55.4342   2.803  0.00696 ** 
+Mnth_Cd       3.2351     0.2838 422.8669  11.400  &lt; 2e-16 ***
+---
+Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+
+Correlation of Fixed Effects:
+            (Intr) I(/10) mdn_nc otdr__ avg_tm precip ALWAYS elevtn
+I(smoke/10) -0.031                                                 
+mdn_ncm      0.015  0.062                                          
+otdr_l_      0.021 -0.101  0.551                                   
+avg_tmp     -0.063  0.146  0.362  0.099                            
+precip      -0.001  0.387  0.054 -0.058  0.143                     
+ALWAYS       0.018  0.003 -0.317  0.044 -0.334  0.058              
+elevatn     -0.024  0.057  0.339  0.030  0.789  0.034 -0.136       
+Mnth_Cd     -0.889 -0.219 -0.024 -0.009  0.041 -0.030 -0.012  0.021</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>Computing profile confidence intervals ...
+Computing profile confidence intervals ...
+Computing profile confidence intervals ...
+Computing profile confidence intervals ...</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Table for: 1-COVID Incidence 1-Month Lag 
+# A tibble: 11 × 6
+   term            estimate std.error   p.value conf.low conf.high
+   &lt;chr&gt;              &lt;dbl&gt;     &lt;dbl&gt;     &lt;dbl&gt;    &lt;dbl&gt;     &lt;dbl&gt;
+ 1 (Intercept)       -666.      103.   3.82e-10   -863.     -463. 
+ 2 I(smoke/10)        184.       21.4  1.28e-16    141.      225. 
+ 3 mdn_ncm            -36.9      75.9  6.29e- 1   -181.      106. 
+ 4 otdr_l_            -82.8      67.2  2.23e- 1   -209.       44.6
+ 5 avg_tmp            411.       99.1  1.21e- 4    223.      598. 
+ 6 precip              62.8      41.1  1.27e- 1    -21.8     141. 
+ 7 elevatn            129.       95.6  1.83e- 1    -51.8     309. 
+ 8 ALWAYS             -10.0      63.0  8.74e- 1   -129.      109. 
+ 9 Mnth_Cd            149.       11.6  1.60e-32    126.      172. 
+10 sd__(Intercept)    337.       NA   NA            NA        NA  
+11 sd__Observation    672.       NA   NA            NA        NA  
+
+Table for: 2-COVID Incidence 2-Month Lag 
+# A tibble: 11 × 6
+   term            estimate std.error   p.value conf.low conf.high
+   &lt;chr&gt;              &lt;dbl&gt;     &lt;dbl&gt;     &lt;dbl&gt;    &lt;dbl&gt;     &lt;dbl&gt;
+ 1 (Intercept)       -937.      115.   5.24e-15  -1156.     -707. 
+ 2 I(smoke/10)         70.1      22.6  2.05e- 3     25.0     114. 
+ 3 mdn_ncm            -61.9      70.4  3.83e- 1   -196.       70.9
+ 4 otdr_l_            -52.5      61.7  3.98e- 1   -169.       64.5
+ 5 avg_tmp            357.       91.2  2.50e- 4    184.      529. 
+ 6 precip             -51.1      47.1  2.78e- 1   -147.       38.2
+ 7 ALWAYS              24.1      57.8  6.79e- 1    -84.8     134. 
+ 8 elevatn             79.3      87.3  3.68e- 1    -86.0     244. 
+ 9 Mnth_Cd            179.       13.1  2.20e-35    153.      204. 
+10 sd__(Intercept)    277.       NA   NA            NA        NA  
+11 sd__Observation    697.       NA   NA            NA        NA  
+
+Table for: 3-COVID Death 1-Month Lag 
+# A tibble: 11 × 6
+   term            estimate std.error   p.value conf.low conf.high
+   &lt;chr&gt;              &lt;dbl&gt;     &lt;dbl&gt;     &lt;dbl&gt;    &lt;dbl&gt;     &lt;dbl&gt;
+ 1 (Intercept)       -7.89      2.20   3.62e- 4  -12.1      -3.59 
+ 2 I(smoke/10)        1.93      0.481  7.26e- 5    0.974     2.86 
+ 3 mdn_ncm           -1.70      1.35   2.14e- 1   -4.26      0.857
+ 4 otdr_l_           -1.07      1.20   3.76e- 1   -3.35      1.21 
+ 5 avg_tmp           10.3       1.75   2.05e- 7    6.98     13.6  
+ 6 precip            -0.814     0.916  3.75e- 1   -2.62      0.953
+ 7 elevatn            4.81      1.68   5.86e- 3    1.63      7.98 
+ 8 ALWAYS             1.96      1.11   8.39e- 2   -0.149     4.07 
+ 9 Mnth_Cd            1.99      0.260  1.27e-13    1.48      2.50 
+10 sd__(Intercept)    4.89     NA     NA          NA        NA    
+11 sd__Observation   15.2      NA     NA          NA        NA    
+
+Table for: 4-COVID Death 2-Month Lag 
+# A tibble: 11 × 6
+   term            estimate std.error   p.value conf.low conf.high
+   &lt;chr&gt;              &lt;dbl&gt;     &lt;dbl&gt;     &lt;dbl&gt;    &lt;dbl&gt;     &lt;dbl&gt;
+ 1 (Intercept)      -16.4       2.44   6.96e-11 -21.0      -11.5  
+ 2 I(smoke/10)       -0.397     0.488  4.16e- 1  -1.36       0.545
+ 3 mdn_ncm           -2.35      1.37   9.12e- 2  -4.96       0.240
+ 4 otdr_l_           -0.829     1.20   4.93e- 1  -3.11       1.45 
+ 5 avg_tmp            9.89      1.77   6.18e- 7   6.52      13.2  
+ 6 precip            -0.756     1.01   4.56e- 1  -2.76       1.19 
+ 7 ALWAYS             2.10      1.12   6.64e- 2  -0.0225     4.22 
+ 8 elevatn            4.73      1.69   6.96e- 3   1.53       7.92 
+ 9 Mnth_Cd            3.24      0.284  1.96e-26   2.67       3.78 
+10 sd__(Intercept)    4.77     NA     NA         NA         NA    
+11 sd__Observation   15.1      NA     NA         NA         NA    </code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>[[1]]
+NULL
+
+[[2]]
+NULL
+
+[[3]]
+NULL
+
+[[4]]
+NULL</code></pre>
+</div>
+</div>
+</section>
+</section>
+<section id="spatial-auto-regressive-model" class="level2">
+<h2 class="anchored" data-anchor-id="spatial-auto-regressive-model">Spatial Auto-regressive Model</h2>
+<section id="spatial-lag-model" class="level3">
+<h3 class="anchored" data-anchor-id="spatial-lag-model">Spatial Lag Model</h3>
+<div class="cell">
+<div class="cell-output cell-output-stdout">
+<pre><code>[1] "Empty geometries removed"</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>
+Call:lagsarlm(formula = formula1, data = data, listw = weights)
+
+Residuals:
+     Min       1Q   Median       3Q      Max 
+-2261.51  -456.32  -251.50   269.78  6250.03 
+
+Type: lag 
+Coefficients: (asymptotic standard errors) 
+            Estimate Std. Error z value Pr(&gt;|z|)
+(Intercept)  -50.045     72.038 -0.6947   0.4872
+I(smoke/10)  223.880     22.752  9.8400   &lt;2e-16
+
+Rho: 0.67519, LR test value: 28.865, p-value: 7.759e-08
+Asymptotic standard error: 0.084853
+    z-value: 7.9571, p-value: 1.7764e-15
+Wald statistic: 63.315, p-value: 1.7764e-15
+
+Log likelihood: -4256.418 for lag model
+ML residual variance (sigma squared): 697830, (sigma: 835.36)
+Number of observations: 522 
+Number of parameters estimated: 4 
+AIC: 8520.8, (AIC for lm: 8547.7)
+LM test for residual autocorrelation
+test value: 8.6842, p-value: 0.0032099</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>
+Call:lagsarlm(formula = formula2, data = data, listw = weights)
+
+Residuals:
+     Min       1Q   Median       3Q      Max 
+-1669.98  -381.21  -141.96   173.18  5497.61 
+
+Type: lag 
+Coefficients: (asymptotic standard errors) 
+            Estimate Std. Error z value  Pr(&gt;|z|)
+(Intercept) -995.483    132.777 -7.4974 6.506e-14
+I(smoke/10)  175.665     22.643  7.7580 8.660e-15
+mdn_ncm      -37.841     48.285 -0.7837    0.4332
+otdr_l_      -57.637     43.642 -1.3207    0.1866
+avg_tmp      297.749     66.084  4.5057 6.617e-06
+precip        30.431     42.380  0.7181    0.4727
+Mnth_Cd      146.001     12.311 11.8589 &lt; 2.2e-16
+ALWAYS       -24.688     39.377 -0.6270    0.5307
+elevatn       51.886     59.074  0.8783    0.3798
+
+Rho: 0.49836, LR test value: 12.32, p-value: 0.00044802
+Asymptotic standard error: 0.11798
+    z-value: 4.2239, p-value: 2.4012e-05
+Wald statistic: 17.841, p-value: 2.4012e-05
+
+Log likelihood: -3948.512 for lag model
+ML residual variance (sigma squared): 526110, (sigma: 725.34)
+Number of observations: 493 
+Number of parameters estimated: 11 
+AIC: 7919, (AIC for lm: 7929.3)
+LM test for residual autocorrelation
+test value: 7.3624, p-value: 0.0066601</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Table for: 1-Unadjusted COVID Incidence 1-Month Lag 
+# A tibble: 3 × 6
+  term        estimate std.error  p.value conf.low conf.high
+  &lt;chr&gt;          &lt;dbl&gt;     &lt;dbl&gt;    &lt;dbl&gt;    &lt;dbl&gt;     &lt;dbl&gt;
+1 rho            0.675    0.0849 1.78e-15    0.509     0.841
+2 (Intercept)  -50.0     72.0    4.87e- 1 -191.       91.1  
+3 I(smoke/10)  224.      22.8    0         179.      268.   
+
+Table for: 2-Unadjusted COVID Incidence 2-Month Lag 
+# A tibble: 3 × 6
+  term        estimate std.error  p.value conf.low conf.high
+  &lt;chr&gt;          &lt;dbl&gt;     &lt;dbl&gt;    &lt;dbl&gt;    &lt;dbl&gt;     &lt;dbl&gt;
+1 rho            0.664    0.0949 2.69e-12    0.478     0.850
+2 (Intercept)   45.6     76.9    5.53e- 1 -105.      196.   
+3 I(smoke/10)  123.      24.1    3.12e- 7   76.1     171.   
+
+Table for: 3-Adjusted COVID Incidence 1-Month Lag 
+# A tibble: 10 × 6
+   term        estimate std.error  p.value  conf.low conf.high
+   &lt;chr&gt;          &lt;dbl&gt;     &lt;dbl&gt;    &lt;dbl&gt;     &lt;dbl&gt;     &lt;dbl&gt;
+ 1 rho            0.498     0.118 2.40e- 5     0.267     0.730
+ 2 (Intercept) -995.      133.    6.51e-14 -1256.     -735.   
+ 3 I(smoke/10)  176.       22.6   8.66e-15   131.      220.   
+ 4 mdn_ncm      -37.8      48.3   4.33e- 1  -132.       56.8  
+ 5 otdr_l_      -57.6      43.6   1.87e- 1  -143.       27.9  
+ 6 avg_tmp      298.       66.1   6.62e- 6   168.      427.   
+ 7 precip        30.4      42.4   4.73e- 1   -52.6     113.   
+ 8 Mnth_Cd      146.       12.3   0          122.      170.   
+ 9 ALWAYS       -24.7      39.4   5.31e- 1  -102.       52.5  
+10 elevatn       51.9      59.1   3.80e- 1   -63.9     168.   
+
+Table for: 4-Adjusted COVID Incidence 2-Month Lag 
+# A tibble: 10 × 6
+   term         estimate std.error  p.value  conf.low conf.high
+   &lt;chr&gt;           &lt;dbl&gt;     &lt;dbl&gt;    &lt;dbl&gt;     &lt;dbl&gt;     &lt;dbl&gt;
+ 1 rho             0.433     0.126 0.000588     0.186     0.679
+ 2 (Intercept) -1165.      138.    0        -1434.     -895.   
+ 3 I(smoke/10)    65.9      23.2   0.00454     20.4     111.   
+ 4 mdn_ncm       -73.0      50.8   0.151     -173.       26.6  
+ 5 otdr_l_       -36.6      44.9   0.415     -125.       51.5  
+ 6 avg_tmp       257.       69.8   0.000227   121.      394.   
+ 7 precip        -68.6      47.4   0.148     -162.       24.4  
+ 8 elevatn        24.9      61.2   0.684      -95.1     145.   
+ 9 ALWAYS          0.694    41.1   0.987      -79.9      81.3  
+10 Mnth_Cd       175.       13.5   0          148.      201.   </code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>[[1]]
+NULL
+
+[[2]]
+NULL
+
+[[3]]
+NULL
+
+[[4]]
+NULL</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Table for: 1-Unadjusted COVID Death 1-Month Lag 
+# A tibble: 3 × 6
+  term        estimate std.error       p.value conf.low conf.high
+  &lt;chr&gt;          &lt;dbl&gt;     &lt;dbl&gt;         &lt;dbl&gt;    &lt;dbl&gt;     &lt;dbl&gt;
+1 rho            0.758    0.0743 0                0.613     0.904
+2 (Intercept)   -0.934    1.15   0.419           -3.20      1.33 
+3 I(smoke/10)    2.67     0.462  0.00000000800    1.76      3.57 
+
+Table for: 2-Unadjusted COVID Death 2-Month Lag 
+# A tibble: 3 × 6
+  term        estimate std.error  p.value conf.low conf.high
+  &lt;chr&gt;          &lt;dbl&gt;     &lt;dbl&gt;    &lt;dbl&gt;    &lt;dbl&gt;     &lt;dbl&gt;
+1 rho            0.705    0.0902 5.55e-15    0.528     0.882
+2 (Intercept)    2.07     1.37   1.31e- 1   -0.616     4.76 
+3 I(smoke/10)    0.570    0.501  2.55e- 1   -0.412     1.55 
+
+Table for: 3-Adjusted COVID Death 1-Month Lag 
+# A tibble: 10 × 6
+   term        estimate std.error  p.value  conf.low conf.high
+   &lt;chr&gt;          &lt;dbl&gt;     &lt;dbl&gt;    &lt;dbl&gt;     &lt;dbl&gt;     &lt;dbl&gt;
+ 1 rho            0.206     0.152 1.74e- 1  -0.0913      0.504
+ 2 (Intercept)   -9.79      2.71  2.98e- 4 -15.1        -4.49 
+ 3 I(smoke/10)    1.86      0.491 1.56e- 4   0.895       2.82 
+ 4 mdn_ncm       -1.90      1.04  6.91e- 2  -3.95        0.149
+ 5 otdr_l_       -0.972     0.947 3.05e- 1  -2.83        0.884
+ 6 avg_tmp        8.72      1.76  6.79e- 7   5.28       12.2  
+ 7 precip        -0.883     0.920 3.37e- 1  -2.69        0.920
+ 8 elevatn        3.66      1.43  1.07e- 2   0.850       6.47 
+ 9 ALWAYS         1.73      0.876 4.88e- 2   0.00941     3.44 
+10 Mnth_Cd        1.97      0.267 1.45e-13   1.45        2.50 
+
+Table for: 4-Adjusted COVID Death 2-Month Lag 
+# A tibble: 10 × 6
+   term        estimate std.error  p.value conf.low conf.high
+   &lt;chr&gt;          &lt;dbl&gt;     &lt;dbl&gt;    &lt;dbl&gt;    &lt;dbl&gt;     &lt;dbl&gt;
+ 1 rho            0.199     0.150 1.87e- 1  -0.0962     0.493
+ 2 (Intercept)  -17.8       2.84  3.96e-10 -23.3      -12.2  
+ 3 I(smoke/10)   -0.463     0.497 3.51e- 1  -1.44       0.511
+ 4 mdn_ncm       -2.62      1.09  1.61e- 2  -4.75      -0.487
+ 5 otdr_l_       -0.723     0.962 4.52e- 1  -2.61       1.16 
+ 6 avg_tmp        8.32      1.81  4.18e- 6   4.77      11.9  
+ 7 precip        -0.894     1.02  3.79e- 1  -2.88       1.10 
+ 8 elevatn        3.64      1.47  1.30e- 2   0.766      6.52 
+ 9 ALWAYS         1.93      0.896 3.11e- 2   0.175      3.69 
+10 Mnth_Cd        3.19      0.290 0          2.62       3.76 </code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>[[1]]
+NULL
+
+[[2]]
+NULL
+
+[[3]]
+NULL
+
+[[4]]
+NULL</code></pre>
+</div>
+</div>
+</section>
+<section id="spatial-error-model" class="level3">
+<h3 class="anchored" data-anchor-id="spatial-error-model">Spatial Error Model</h3>
+<div class="cell">
+<div class="cell-output cell-output-stdout">
+<pre><code>Table for: 1-Unadjusted COVID Incidence 1-Month Lag 
+# A tibble: 3 × 6
+  term        estimate std.error  p.value conf.low conf.high
+  &lt;chr&gt;          &lt;dbl&gt;     &lt;dbl&gt;    &lt;dbl&gt;    &lt;dbl&gt;     &lt;dbl&gt;
+1 (Intercept)  392.     120.     1.05e- 3  158.      627.   
+2 I(smoke/10)  240.      22.8    0         195.      284.   
+3 lambda         0.689    0.0938 2.00e-13    0.505     0.873
+
+Table for: 2-Unadjusted COVID Incidence 2-Month Lag 
+# A tibble: 3 × 6
+  term        estimate std.error  p.value conf.low conf.high
+  &lt;chr&gt;          &lt;dbl&gt;     &lt;dbl&gt;    &lt;dbl&gt;    &lt;dbl&gt;     &lt;dbl&gt;
+1 (Intercept)  440.     126.     4.55e- 4  194.      687.   
+2 I(smoke/10)  137.      24.4    2.05e- 8   89.1     185.   
+3 lambda         0.668    0.0984 1.09e-11    0.476     0.861
+
+Table for: 3-Adjusted COVID Incidence 1-Month Lag 
+# A tibble: 10 × 6
+   term        estimate std.error  p.value conf.low conf.high
+   &lt;chr&gt;          &lt;dbl&gt;     &lt;dbl&gt;    &lt;dbl&gt;    &lt;dbl&gt;     &lt;dbl&gt;
+ 1 (Intercept) -617.      129.    1.63e- 6 -870.     -365.   
+ 2 I(smoke/10)  180.       22.4   8.88e-16  136.      224.   
+ 3 mdn_ncm      -65.8      59.8   2.71e- 1 -183.       51.4  
+ 4 otdr_l_      -53.0      44.9   2.37e- 1 -141.       34.9  
+ 5 avg_tmp      347.      105.    9.71e- 4  141.      553.   
+ 6 precip        43.3      42.5   3.08e- 1  -40.0     127.   
+ 7 Mnth_Cd      145.       12.1   0         121.      169.   
+ 8 ALWAYS       -64.9      48.3   1.79e- 1 -160.       29.8  
+ 9 elevatn       17.7      97.3   8.56e- 1 -173.      208.   
+10 lambda         0.641     0.104 7.81e-10    0.437     0.845
+
+Table for: 4-Adjusted COVID Incidence 2-Month Lag 
+# A tibble: 10 × 6
+   term        estimate std.error  p.value  conf.low conf.high
+   &lt;chr&gt;          &lt;dbl&gt;     &lt;dbl&gt;    &lt;dbl&gt;     &lt;dbl&gt;     &lt;dbl&gt;
+ 1 (Intercept) -905.      135.    1.85e-11 -1169.     -641.   
+ 2 I(smoke/10)   69.4      23.0   2.54e- 3    24.3     114.   
+ 3 mdn_ncm      -80.1      61.7   1.94e- 1  -201.       40.8  
+ 4 otdr_l_      -29.1      46.0   5.28e- 1  -119.       61.1  
+ 5 avg_tmp      306.      104.    3.34e- 3   102.      511.   
+ 6 precip       -58.5      47.5   2.18e- 1  -152.       34.5  
+ 7 elevatn       -9.30     96.6   9.23e- 1  -199.      180.   
+ 8 ALWAYS       -39.5      49.6   4.26e- 1  -137.       57.7  
+ 9 Mnth_Cd      177.       13.4   0          151.      203.   
+10 lambda         0.594     0.114 1.87e- 7     0.370     0.817</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>[[1]]
+NULL
+
+[[2]]
+NULL
+
+[[3]]
+NULL
+
+[[4]]
+NULL</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Table for: 1-Unadjusted COVID Death 1-Month Lag 
+# A tibble: 3 × 6
+  term        estimate std.error  p.value conf.low conf.high
+  &lt;chr&gt;          &lt;dbl&gt;     &lt;dbl&gt;    &lt;dbl&gt;    &lt;dbl&gt;     &lt;dbl&gt;
+1 (Intercept)    5.99     3.03   4.79e- 2   0.0555    11.9  
+2 I(smoke/10)    2.94     0.467  3.10e-10   2.02       3.85 
+3 lambda         0.751    0.0800 0          0.594      0.908
+
+Table for: 2-Unadjusted COVID Death 2-Month Lag 
+# A tibble: 3 × 6
+  term        estimate std.error  p.value conf.low conf.high
+  &lt;chr&gt;          &lt;dbl&gt;     &lt;dbl&gt;    &lt;dbl&gt;    &lt;dbl&gt;     &lt;dbl&gt;
+1 (Intercept)    8.54     2.94   3.70e- 3    2.77     14.3  
+2 I(smoke/10)    0.793    0.511  1.21e- 1   -0.209     1.79 
+3 lambda         0.706    0.0903 5.33e-15    0.529     0.883
+
+Table for: 3-Adjusted COVID Death 1-Month Lag 
+# A tibble: 10 × 6
+   term        estimate std.error  p.value conf.low conf.high
+   &lt;chr&gt;          &lt;dbl&gt;     &lt;dbl&gt;    &lt;dbl&gt;    &lt;dbl&gt;     &lt;dbl&gt;
+ 1 (Intercept)   -7.59      2.37  1.34e- 3  -12.2     -2.95  
+ 2 I(smoke/10)    1.90      0.488 9.64e- 5    0.946    2.86  
+ 3 mdn_ncm       -2.38      1.19  4.61e- 2   -4.71    -0.0406
+ 4 otdr_l_       -1.06      0.964 2.71e- 1   -2.95     0.829 
+ 5 avg_tmp       10.5       1.86  1.73e- 8    6.85    14.1   
+ 6 precip        -0.828     0.923 3.70e- 1   -2.64     0.981 
+ 7 elevatn        4.13      1.75  1.84e- 2    0.698    7.57  
+ 8 ALWAYS         1.80      0.982 6.72e- 2   -0.127    3.72  
+ 9 Mnth_Cd        1.97      0.264 7.37e-14    1.46     2.49  
+10 lambda         0.440     0.143 2.07e- 3    0.160    0.720 
+
+Table for: 4-Adjusted COVID Death 2-Month Lag 
+# A tibble: 10 × 6
+   term        estimate std.error  p.value conf.low conf.high
+   &lt;chr&gt;          &lt;dbl&gt;     &lt;dbl&gt;    &lt;dbl&gt;    &lt;dbl&gt;     &lt;dbl&gt;
+ 1 (Intercept)  -16.0       2.58  5.91e-10 -21.0      -10.9  
+ 2 I(smoke/10)   -0.417     0.494 3.99e- 1  -1.39       0.552
+ 3 mdn_ncm       -2.93      1.23  1.69e- 2  -5.33      -0.526
+ 4 otdr_l_       -0.758     0.978 4.38e- 1  -2.67       1.16 
+ 5 avg_tmp        9.91      1.86  9.18e- 8   6.28      13.5  
+ 6 precip        -0.807     1.02  4.28e- 1  -2.80       1.19 
+ 7 elevatn        4.03      1.74  2.07e- 2   0.614      7.44 
+ 8 ALWAYS         1.92      0.998 5.47e- 2  -0.0384     3.87 
+ 9 Mnth_Cd        3.21      0.288 0          2.65       3.78 
+10 lambda         0.401     0.150 7.49e- 3   0.107      0.695</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>[[1]]
+NULL
+
+[[2]]
+NULL
+
+[[3]]
+NULL
+
+[[4]]
+NULL</code></pre>
+</div>
+</div>
+</section>
+<section id="unadjusted-models-of-confounders" class="level3">
+<h3 class="anchored" data-anchor-id="unadjusted-models-of-confounders">Unadjusted Models of Confounders</h3>
+<div class="cell">
+<div class="cell-output cell-output-stdout">
+<pre><code>
+Call:lagsarlm(formula = formula5, data = data, listw = weights)
+
+Residuals:
+     Min       1Q   Median       3Q      Max 
+-1159.63  -619.90  -279.89   318.88  5999.29 
+
+Type: lag 
+Coefficients: (asymptotic standard errors) 
+                  Estimate Std. Error z value Pr(&gt;|z|)
+(Intercept)        316.448     96.741  3.2711 0.001071
+I(mdn_ncm/1000) -66462.817  42976.799 -1.5465 0.121988
+
+Rho: 0.5644, LR test value: 17.518, p-value: 2.8463e-05
+Asymptotic standard error: 0.11857
+    z-value: 4.7599, p-value: 1.9369e-06
+Wald statistic: 22.657, p-value: 1.9369e-06
+
+Log likelihood: -4064.501 for lag model
+ML residual variance (sigma squared): 840120, (sigma: 916.58)
+Number of observations: 493 
+Number of parameters estimated: 4 
+AIC: 8137, (AIC for lm: 8152.5)
+LM test for residual autocorrelation
+test value: 0.55625, p-value: 0.45577</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>                        2.5 %       97.5 %
+rho              3.319981e-01 7.967977e-01
+(Intercept)      1.268399e+02 5.060565e+02
+I(mdn_ncm/1000) -1.506958e+05 1.777016e+04</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>
+Call:lagsarlm(formula = formula6, data = data, listw = weights)
+
+Residuals:
+     Min       1Q   Median       3Q      Max 
+-1104.68  -630.54  -259.54   331.38  6055.98 
+
+Type: lag 
+Coefficients: (asymptotic standard errors) 
+            Estimate Std. Error z value Pr(&gt;|z|)
+(Intercept)  312.240     95.654  3.2643 0.001098
+otdr_l_       22.790     41.596  0.5479 0.583766
+
+Rho: 0.57155, LR test value: 17.828, p-value: 2.4184e-05
+Asymptotic standard error: 0.11805
+    z-value: 4.8417, p-value: 1.2876e-06
+Wald statistic: 23.442, p-value: 1.2876e-06
+
+Log likelihood: -4065.595 for lag model
+ML residual variance (sigma squared): 843600, (sigma: 918.48)
+Number of observations: 493 
+Number of parameters estimated: 4 
+AIC: 8139.2, (AIC for lm: 8155)
+LM test for residual autocorrelation
+test value: 0.0309, p-value: 0.86046</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>                2.5 %      97.5 %
+rho           0.34018   0.8029223
+(Intercept) 124.76108 499.7189852
+otdr_l_     -58.73688 104.3174466</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>
+Call:lagsarlm(formula = formula7, data = data, listw = weights)
+
+Residuals:
+     Min       1Q   Median       3Q      Max 
+-1340.82  -630.14  -184.94   248.13  5747.48 
+
+Type: lag 
+Coefficients: (asymptotic standard errors) 
+            Estimate Std. Error z value  Pr(&gt;|z|)
+(Intercept)  489.255    117.207  4.1743 2.989e-05
+avg_tmp      176.001     45.905  3.8340 0.0001261
+
+Rho: 0.29154, LR test value: 3.2458, p-value: 0.071605
+Asymptotic standard error: 0.1579
+    z-value: 1.8464, p-value: 0.064834
+Wald statistic: 3.4092, p-value: 0.064834
+
+Log likelihood: -4292.477 for lag model
+ML residual variance (sigma squared): 811290, (sigma: 900.71)
+Number of observations: 522 
+Number of parameters estimated: 4 
+AIC: 8593, (AIC for lm: 8594.2)
+LM test for residual autocorrelation
+test value: 1.4361, p-value: 0.23077</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>                   2.5 %    97.5 %
+rho          -0.01793149   0.60102
+(Intercept) 259.53351337 718.97638
+avg_tmp      86.02874654 265.97234</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>
+Call:lagsarlm(formula = formula8, data = data, listw = weights)
+
+Residuals:
+    Min      1Q  Median      3Q     Max 
+-991.61 -612.85 -263.41  279.34 6076.88 
+
+Type: lag 
+Coefficients: (asymptotic standard errors) 
+            Estimate Std. Error z value  Pr(&gt;|z|)
+(Intercept)  373.033    104.304  3.5764 0.0003483
+precip      -194.799     45.907 -4.2434 2.202e-05
+
+Rho: 0.42747, LR test value: 8.7709, p-value: 0.0030607
+Asymptotic standard error: 0.1401
+    z-value: 3.0511, p-value: 0.0022801
+Wald statistic: 9.3092, p-value: 0.0022801
+
+Log likelihood: -4292.01 for lag model
+ML residual variance (sigma squared): 807650, (sigma: 898.69)
+Number of observations: 522 
+Number of parameters estimated: 4 
+AIC: 8592, (AIC for lm: 8598.8)
+LM test for residual autocorrelation
+test value: 2.7889, p-value: 0.094918</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>                   2.5 %       97.5 %
+rho            0.1528702    0.7020608
+(Intercept)  168.6019390  577.4643917
+precip      -284.7750324 -104.8234046</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>
+Call:lagsarlm(formula = formula9, data = data, listw = weights)
+
+Residuals:
+     Min       1Q   Median       3Q      Max 
+-1073.79  -621.68  -236.09   279.09  6054.89 
+
+Type: lag 
+Coefficients: (asymptotic standard errors) 
+            Estimate Std. Error z value  Pr(&gt;|z|)
+(Intercept)  365.486    101.327  3.6070 0.0003098
+elevatn     -111.343     41.841 -2.6611 0.0077893
+
+Rho: 0.46978, LR test value: 10.786, p-value: 0.0010228
+Asymptotic standard error: 0.13452
+    z-value: 3.4922, p-value: 0.00047902
+Wald statistic: 12.196, p-value: 0.00047902
+
+Log likelihood: -4296.828 for lag model
+ML residual variance (sigma squared): 821740, (sigma: 906.5)
+Number of observations: 522 
+Number of parameters estimated: 4 
+AIC: 8601.7, (AIC for lm: 8610.4)
+LM test for residual autocorrelation
+test value: 1.7104, p-value: 0.19094</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>                   2.5 %      97.5 %
+rho            0.2061214   0.7334358
+(Intercept)  166.8883741 564.0840773
+elevatn     -193.3504068 -29.3352650</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>
+Call:lagsarlm(formula = formula10, data = data, listw = weights)
+
+Residuals:
+     Min       1Q   Median       3Q      Max 
+-1093.54  -624.60  -248.03   318.75  6062.56 
+
+Type: lag 
+Coefficients: (asymptotic standard errors) 
+            Estimate Std. Error z value  Pr(&gt;|z|)
+(Intercept)  326.860     98.069   3.333 0.0008593
+ALWAYS        15.117     41.414   0.365 0.7150893
+
+Rho: 0.5527, LR test value: 14.997, p-value: 0.00010768
+Asymptotic standard error: 0.12182
+    z-value: 4.5369, p-value: 5.7088e-06
+Wald statistic: 20.583, p-value: 5.7088e-06
+
+Log likelihood: -4065.683 for lag model
+ML residual variance (sigma squared): 844570, (sigma: 919.01)
+Number of observations: 493 
+Number of parameters estimated: 4 
+AIC: 8139.4, (AIC for lm: 8152.4)
+LM test for residual autocorrelation
+test value: 0.061367, p-value: 0.80435</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>                  2.5 %      97.5 %
+rho           0.3139332   0.7914757
+(Intercept) 134.6486095 519.0723414
+ALWAYS      -66.0522868  96.2868121</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>
+Call:lagsarlm(formula = formula11, data = data, listw = weights)
+
+Residuals:
+     Min       1Q   Median       3Q      Max 
+-1181.44  -403.31  -187.50   137.46  6020.41 
+
+Type: lag 
+Coefficients: (asymptotic standard errors) 
+            Estimate Std. Error z value  Pr(&gt;|z|)
+(Intercept) -984.265    109.640 -8.9772 &lt; 2.2e-16
+Mnth_Cd      160.833     11.458 14.0372 &lt; 2.2e-16
+
+Rho: 0.67492, LR test value: 31.701, p-value: 1.798e-08
+Asymptotic standard error: 0.091304
+    z-value: 7.392, p-value: 1.4455e-13
+Wald statistic: 54.642, p-value: 1.4466e-13
+
+Log likelihood: -4217.686 for lag model
+ML residual variance (sigma squared): 601600, (sigma: 775.63)
+Number of observations: 522 
+Number of parameters estimated: 4 
+AIC: 8443.4, (AIC for lm: 8473.1)
+LM test for residual autocorrelation
+test value: 3.6892, p-value: 0.054765</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>                    2.5 %       97.5 %
+rho             0.4959708    0.8538774
+(Intercept) -1199.1557216 -769.3747318
+Mnth_Cd       138.3766240  183.2898640</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>
+Call:lagsarlm(formula = dth_formula5, data = data, listw = weights)
+
+Residuals:
+     Min       1Q   Median       3Q      Max 
+-25.2241  -8.8370  -5.5211   2.6609 166.2538 
+
+Type: lag 
+Coefficients: (asymptotic standard errors) 
+                  Estimate Std. Error z value Pr(&gt;|z|)
+(Intercept)         2.9012     1.2242  2.3699  0.01779
+I(mdn_ncm/1000) -1724.7820   845.6695 -2.0395  0.04140
+
+Rho: 0.71067, LR test value: 39.424, p-value: 3.4112e-10
+Asymptotic standard error: 0.08778
+    z-value: 8.096, p-value: 6.6613e-16
+Wald statistic: 65.546, p-value: 5.5511e-16
+
+Log likelihood: -2123.652 for lag model
+ML residual variance (sigma squared): 317.25, (sigma: 17.811)
+Number of observations: 493 
+Number of parameters estimated: 4 
+AIC: 4255.3, (AIC for lm: 4292.7)
+LM test for residual autocorrelation
+test value: 0.84175, p-value: 0.3589</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>                        2.5 %      97.5 %
+rho                 0.5386243   0.8827158
+(Intercept)         0.5018849   5.3005303
+I(mdn_ncm/1000) -3382.2638255 -67.3002387</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>
+Call:lagsarlm(formula = dth_formula6, data = data, listw = weights)
+
+Residuals:
+     Min       1Q   Median       3Q      Max 
+-23.3988  -8.3028  -4.9464   1.8489 168.0530 
+
+Type: lag 
+Coefficients: (asymptotic standard errors) 
+            Estimate Std. Error z value Pr(&gt;|z|)
+(Intercept)  2.97550    1.22130  2.4363  0.01484
+otdr_l_      0.35453    0.80995  0.4377  0.66159
+
+Rho: 0.70662, LR test value: 38.115, p-value: 6.6703e-10
+Asymptotic standard error: 0.090068
+    z-value: 7.8455, p-value: 4.2188e-15
+Wald statistic: 61.551, p-value: 4.3299e-15
+
+Log likelihood: -2125.766 for lag model
+ML residual variance (sigma squared): 320.07, (sigma: 17.891)
+Number of observations: 493 
+Number of parameters estimated: 4 
+AIC: 4259.5, (AIC for lm: 4295.6)
+LM test for residual autocorrelation
+test value: 8.3488e-06, p-value: 0.99769</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>                 2.5 %    97.5 %
+rho          0.5300950 0.8831544
+(Intercept)  0.5817905 5.3691996
+otdr_l_     -1.2329527 1.9420077</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>
+Call:lagsarlm(formula = dth_formula7, data = data, listw = weights)
+
+Residuals:
+     Min       1Q   Median       3Q      Max 
+-28.8275  -9.3455  -3.6006   2.4721 160.2476 
+
+Type: lag 
+Coefficients: (asymptotic standard errors) 
+            Estimate Std. Error z value  Pr(&gt;|z|)
+(Intercept)  6.15333    1.56012  3.9441 8.009e-05
+avg_tmp      4.75690    0.96621  4.9232 8.512e-07
+
+Rho: 0.36114, LR test value: 6.1757, p-value: 0.012952
+Asymptotic standard error: 0.13805
+    z-value: 2.616, p-value: 0.0088954
+Wald statistic: 6.8437, p-value: 0.0088954
+
+Log likelihood: -2227.661 for lag model
+ML residual variance (sigma squared): 297.08, (sigma: 17.236)
+Number of observations: 522 
+Number of parameters estimated: 4 
+AIC: 4463.3, (AIC for lm: 4467.5)
+LM test for residual autocorrelation
+test value: 3.0056, p-value: 0.082978</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>                 2.5 %    97.5 %
+rho         0.09057065 0.6317066
+(Intercept) 3.09554841 9.2111185
+avg_tmp     2.86316127 6.6506459</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>
+Call:lagsarlm(formula = dth_formula8, data = data, listw = weights)
+
+Residuals:
+     Min       1Q   Median       3Q      Max 
+-21.6425  -8.6988  -4.6964   2.0510 168.2707 
+
+Type: lag 
+Coefficients: (asymptotic standard errors) 
+            Estimate Std. Error z value  Pr(&gt;|z|)
+(Intercept)  3.09620    1.23919  2.4986   0.01247
+precip      -3.75102    0.88617 -4.2328 2.308e-05
+
+Rho: 0.63366, LR test value: 29.358, p-value: 6.0176e-08
+Asymptotic standard error: 0.10173
+    z-value: 6.2288, p-value: 4.6997e-10
+Wald statistic: 38.798, p-value: 4.6997e-10
+
+Log likelihood: -2233.269 for lag model
+ML residual variance (sigma squared): 300.8, (sigma: 17.344)
+Number of observations: 522 
+Number of parameters estimated: 4 
+AIC: 4474.5, (AIC for lm: 4501.9)
+LM test for residual autocorrelation
+test value: 0.49395, p-value: 0.48217</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>                 2.5 %     97.5 %
+rho          0.4342718  0.8330476
+(Intercept)  0.6674330  5.5249704
+precip      -5.4878836 -2.0141599</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>
+Call:lagsarlm(formula = dth_formula9, data = data, listw = weights)
+
+Residuals:
+     Min       1Q   Median       3Q      Max 
+-22.9297  -9.1174  -4.0141   1.5147 167.8523 
+
+Type: lag 
+Coefficients: (asymptotic standard errors) 
+            Estimate Std. Error z value Pr(&gt;|z|)
+(Intercept)  3.41670    1.24280  2.7492 0.005974
+elevatn     -2.29421    0.80831 -2.8383 0.004536
+
+Rho: 0.64426, LR test value: 29.952, p-value: 4.4286e-08
+Asymptotic standard error: 0.10082
+    z-value: 6.39, p-value: 1.659e-10
+Wald statistic: 40.832, p-value: 1.659e-10
+
+Log likelihood: -2237.657 for lag model
+ML residual variance (sigma squared): 305.73, (sigma: 17.485)
+Number of observations: 522 
+Number of parameters estimated: 4 
+AIC: 4483.3, (AIC for lm: 4511.3)
+LM test for residual autocorrelation
+test value: 2.0031, p-value: 0.15698</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>                 2.5 %     97.5 %
+rho          0.4466514  0.8418734
+(Intercept)  0.9808532  5.8525374
+elevatn     -3.8784700 -0.7099479</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>
+Call:lagsarlm(formula = dth_formula10, data = data, listw = weights)
+
+Residuals:
+     Min       1Q   Median       3Q      Max 
+-24.2228  -8.7305  -4.4857   2.6087 166.7049 
+
+Type: lag 
+Coefficients: (asymptotic standard errors) 
+            Estimate Std. Error z value Pr(&gt;|z|)
+(Intercept)  3.85237    1.32789  2.9011 0.003718
+ALWAYS       1.90136    0.83862  2.2673 0.023374
+
+Rho: 0.62531, LR test value: 24.726, p-value: 6.608e-07
+Asymptotic standard error: 0.10435
+    z-value: 5.9923, p-value: 2.0688e-09
+Wald statistic: 35.908, p-value: 2.0688e-09
+
+Log likelihood: -2123.378 for lag model
+ML residual variance (sigma squared): 318.53, (sigma: 17.847)
+Number of observations: 493 
+Number of parameters estimated: 4 
+AIC: 4254.8, (AIC for lm: 4277.5)
+LM test for residual autocorrelation
+test value: 0.00080678, p-value: 0.97734</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>                2.5 %    97.5 %
+rho         0.4207803 0.8298299
+(Intercept) 1.2497483 6.4549882
+ALWAYS      0.2577044 3.5450217</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>
+Call:lagsarlm(formula = dth_formula11, data = data, listw = weights)
+
+Residuals:
+     Min       1Q   Median       3Q      Max 
+-24.2632  -7.0018  -2.8527   2.2689 165.7562 
+
+Type: lag 
+Coefficients: (asymptotic standard errors) 
+             Estimate Std. Error z value  Pr(&gt;|z|)
+(Intercept) -13.77611    2.06418 -6.6739 2.491e-11
+Mnth_Cd       2.14181    0.24205  8.8487 &lt; 2.2e-16
+
+Rho: 0.76006, LR test value: 51.092, p-value: 8.8163e-13
+Asymptotic standard error: 0.075983
+    z-value: 10.003, p-value: &lt; 2.22e-16
+Wald statistic: 100.06, p-value: &lt; 2.22e-16
+
+Log likelihood: -2205.739 for lag model
+ML residual variance (sigma squared): 268.53, (sigma: 16.387)
+Number of observations: 522 
+Number of parameters estimated: 4 
+AIC: 4419.5, (AIC for lm: 4468.6)
+LM test for residual autocorrelation
+test value: 1.5061, p-value: 0.21974</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>                 2.5 %    97.5 %
+rho           0.611138  0.908987
+(Intercept) -17.821829 -9.730396
+Mnth_Cd       1.667405  2.616215</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>
+Call:lagsarlm(formula = formula5, data = data, listw = weights)
+
+Residuals:
+     Min       1Q   Median       3Q      Max 
+-1041.44  -556.09  -334.40   268.86  6130.49 
+
+Type: lag 
+Coefficients: (asymptotic standard errors) 
+                 Estimate Std. Error z value Pr(&gt;|z|)
+(Intercept)        251.82      83.23  3.0256 0.002481
+I(mdn_ncm/1000) -51104.24   44126.00 -1.1581 0.246805
+
+Rho: 0.59678, LR test value: 21.169, p-value: 4.2055e-06
+Asymptotic standard error: 0.11274
+    z-value: 5.2935, p-value: 1.2e-07
+Wald statistic: 28.021, p-value: 1.2e-07
+
+Log likelihood: -3775.994 for lag model
+ML residual variance (sigma squared): 808820, (sigma: 899.35)
+Number of observations: 459 
+Number of parameters estimated: 4 
+AIC: 7560, (AIC for lm: 7579.2)
+LM test for residual autocorrelation
+test value: 0.43624, p-value: 0.50894</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>                        2.5 %       97.5 %
+rho              3.758148e-01 8.177375e-01
+(Intercept)      8.869602e+01 4.149517e+02
+I(mdn_ncm/1000) -1.375896e+05 3.538113e+04</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>
+Call:lagsarlm(formula = formula6, data = data, listw = weights)
+
+Residuals:
+    Min      1Q  Median      3Q     Max 
+-987.80 -550.31 -327.73  269.32 6182.63 
+
+Type: lag 
+Coefficients: (asymptotic standard errors) 
+            Estimate Std. Error z value Pr(&gt;|z|)
+(Intercept)  258.098     83.699  3.0836 0.002045
+otdr_l_       10.808     41.960  0.2576 0.796733
+
+Rho: 0.59076, LR test value: 20.195, p-value: 6.9922e-06
+Asymptotic standard error: 0.11447
+    z-value: 5.161, p-value: 2.4559e-07
+Wald statistic: 26.636, p-value: 2.4559e-07
+
+Log likelihood: -3776.642 for lag model
+ML residual variance (sigma squared): 811350, (sigma: 900.75)
+Number of observations: 459 
+Number of parameters estimated: 4 
+AIC: 7561.3, (AIC for lm: 7579.5)
+LM test for residual autocorrelation
+test value: 0.030784, p-value: 0.86072</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>                  2.5 %      97.5 %
+rho           0.3664146   0.8151144
+(Intercept)  94.0504375 422.1461976
+otdr_l_     -71.4329229  93.0490196</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>
+Call:lagsarlm(formula = formula7, data = data, listw = weights)
+
+Residuals:
+     Min       1Q   Median       3Q      Max 
+-1378.55  -598.82  -164.92   221.67  5721.63 
+
+Type: lag 
+Coefficients: (asymptotic standard errors) 
+            Estimate Std. Error z value  Pr(&gt;|z|)
+(Intercept)   430.10     104.98  4.0969 4.187e-05
+avg_tmp       207.50      49.20  4.2175 2.471e-05
+
+Rho: 0.31069, LR test value: 3.9789, p-value: 0.046072
+Asymptotic standard error: 0.15215
+    z-value: 2.042, p-value: 0.041153
+Wald statistic: 4.1697, p-value: 0.041153
+
+Log likelihood: -3806.25 for lag model
+ML residual variance (sigma squared): 779000, (sigma: 882.61)
+Number of observations: 464 
+Number of parameters estimated: 4 
+AIC: 7620.5, (AIC for lm: 7622.5)
+LM test for residual autocorrelation
+test value: 1.1352, p-value: 0.28668</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>                   2.5 %      97.5 %
+rho           0.01247947   0.6088953
+(Intercept) 224.34231956 635.8653352
+avg_tmp     111.06850740 303.9281337</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>
+Call:lagsarlm(formula = formula8, data = data, listw = weights)
+
+Residuals:
+     Min       1Q   Median       3Q      Max 
+-1013.73  -587.24  -278.85   277.80  6124.67 
+
+Type: lag 
+Coefficients: (asymptotic standard errors) 
+            Estimate Std. Error z value  Pr(&gt;|z|)
+(Intercept)  277.651     89.325  3.1083 0.0018815
+precip      -195.595     50.508 -3.8726 0.0001077
+
+Rho: 0.50646, LR test value: 14.456, p-value: 0.00014343
+Asymptotic standard error: 0.12697
+    z-value: 3.9888, p-value: 6.642e-05
+Wald statistic: 15.91, p-value: 6.642e-05
+
+Log likelihood: -3808.892 for lag model
+ML residual variance (sigma squared): 783760, (sigma: 885.3)
+Number of observations: 464 
+Number of parameters estimated: 4 
+AIC: 7625.8, (AIC for lm: 7638.2)
+LM test for residual autocorrelation
+test value: 1.9045, p-value: 0.16757</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>                   2.5 %      97.5 %
+rho            0.2576006   0.7553224
+(Intercept)  102.5771804 452.7241561
+precip      -294.5885249 -96.6019602</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>
+Call:lagsarlm(formula = formula9, data = data, listw = weights)
+
+Residuals:
+     Min       1Q   Median       3Q      Max 
+-1065.10  -583.44  -218.95   242.30  6082.12 
+
+Type: lag 
+Coefficients: (asymptotic standard errors) 
+            Estimate Std. Error z value  Pr(&gt;|z|)
+(Intercept)  313.426     90.740  3.4541 0.0005521
+elevatn     -139.948     44.411 -3.1512 0.0016261
+
+Rho: 0.49825, LR test value: 13.496, p-value: 0.00023912
+Asymptotic standard error: 0.12826
+    z-value: 3.8848, p-value: 0.00010241
+Wald statistic: 15.092, p-value: 0.00010241
+
+Log likelihood: -3810.737 for lag model
+ML residual variance (sigma squared): 790260, (sigma: 888.97)
+Number of observations: 464 
+Number of parameters estimated: 4 
+AIC: 7629.5, (AIC for lm: 7641)
+LM test for residual autocorrelation
+test value: 1.6322, p-value: 0.2014</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>                   2.5 %      97.5 %
+rho            0.2468741   0.7496291
+(Intercept)  135.5800884 491.2728959
+elevatn     -226.9923261 -52.9034520</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>
+Call:lagsarlm(formula = formula10, data = data, listw = weights)
+
+Residuals:
+     Min       1Q   Median       3Q      Max 
+-1018.77  -563.08  -296.50   269.32  6135.32 
+
+Type: lag 
+Coefficients: (asymptotic standard errors) 
+            Estimate Std. Error z value Pr(&gt;|z|)
+(Intercept)  302.108     90.134  3.3518 0.000803
+ALWAYS        56.075     42.355  1.3239 0.185522
+
+Rho: 0.52562, LR test value: 13.066, p-value: 0.00030068
+Asymptotic standard error: 0.12607
+    z-value: 4.1695, p-value: 3.0533e-05
+Wald statistic: 17.384, p-value: 3.0533e-05
+
+Log likelihood: -3775.906 for lag model
+ML residual variance (sigma squared): 811110, (sigma: 900.62)
+Number of observations: 459 
+Number of parameters estimated: 4 
+AIC: 7559.8, (AIC for lm: 7570.9)
+LM test for residual autocorrelation
+test value: 0.67211, p-value: 0.41232</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>                  2.5 %      97.5 %
+rho           0.2785392   0.7727051
+(Intercept) 125.4488586 478.7670609
+ALWAYS      -26.9384242 139.0887499</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>
+Call:lagsarlm(formula = formula11, data = data, listw = weights)
+
+Residuals:
+     Min       1Q   Median       3Q      Max 
+-1258.63  -402.30  -198.34   162.06  5980.20 
+
+Type: lag 
+Coefficients: (asymptotic standard errors) 
+             Estimate Std. Error z value  Pr(&gt;|z|)
+(Intercept) -1264.220    122.025 -10.360 &lt; 2.2e-16
+Mnth_Cd       177.625     13.519  13.139 &lt; 2.2e-16
+
+Rho: 0.73133, LR test value: 43.502, p-value: 4.2362e-11
+Asymptotic standard error: 0.078487
+    z-value: 9.3179, p-value: &lt; 2.22e-16
+Wald statistic: 86.822, p-value: &lt; 2.22e-16
+
+Log likelihood: -3743.378 for lag model
+ML residual variance (sigma squared): 583630, (sigma: 763.96)
+Number of observations: 464 
+Number of parameters estimated: 4 
+AIC: 7494.8, (AIC for lm: 7536.3)
+LM test for residual autocorrelation
+test value: 6.229, p-value: 0.012568</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>                    2.5 %       97.5 %
+rho             0.5775019     0.885167
+(Intercept) -1503.3857995 -1025.054904
+Mnth_Cd       151.1286531   204.120849</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>
+Call:lagsarlm(formula = dth_formula5, data = data, listw = weights)
+
+Residuals:
+     Min       1Q   Median       3Q      Max 
+-25.0182  -8.3633  -5.4362   1.7240 166.5419 
+
+Type: lag 
+Coefficients: (asymptotic standard errors) 
+                  Estimate Std. Error z value Pr(&gt;|z|)
+(Intercept)         2.8285     1.2442  2.2734  0.02300
+I(mdn_ncm/1000) -1772.0558   909.1889 -1.9491  0.05129
+
+Rho: 0.69848, LR test value: 36.419, p-value: 1.5912e-09
+Asymptotic standard error: 0.090616
+    z-value: 7.7081, p-value: 1.2879e-14
+Wald statistic: 59.415, p-value: 1.2768e-14
+
+Log likelihood: -1987.014 for lag model
+ML residual variance (sigma squared): 330.99, (sigma: 18.193)
+Number of observations: 459 
+Number of parameters estimated: 4 
+AIC: 3982, (AIC for lm: 4016.4)
+LM test for residual autocorrelation
+test value: 0.81079, p-value: 0.36789</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>                        2.5 %   97.5 %
+rho                 0.5208755 0.876084
+(Intercept)         0.3899425 5.267036
+I(mdn_ncm/1000) -3554.0332671 9.921637</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>
+Call:lagsarlm(formula = dth_formula6, data = data, listw = weights)
+
+Residuals:
+      Min        1Q    Median        3Q       Max 
+-23.08929  -8.09744  -4.83766   0.97814 168.42664 
+
+Type: lag 
+Coefficients: (asymptotic standard errors) 
+            Estimate Std. Error z value Pr(&gt;|z|)
+(Intercept)  2.98044    1.24664  2.3908  0.01681
+otdr_l_      0.30104    0.85144  0.3536  0.72367
+
+Rho: 0.69187, LR test value: 34.741, p-value: 3.7656e-09
+Asymptotic standard error: 0.093381
+    z-value: 7.409, p-value: 1.2723e-13
+Wald statistic: 54.894, p-value: 1.2723e-13
+
+Log likelihood: -1988.952 for lag model
+ML residual variance (sigma squared): 333.95, (sigma: 18.274)
+Number of observations: 459 
+Number of parameters estimated: 4 
+AIC: 3985.9, (AIC for lm: 4018.6)
+LM test for residual autocorrelation
+test value: 0.0019963, p-value: 0.96436</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>                 2.5 %    97.5 %
+rho          0.5088428 0.8748914
+(Intercept)  0.5370645 5.4238200
+otdr_l_     -1.3677475 1.9698235</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>
+Call:lagsarlm(formula = dth_formula7, data = data, listw = weights)
+
+Residuals:
+     Min       1Q   Median       3Q      Max 
+-30.3741  -9.4303  -3.9014   2.8587 158.9818 
+
+Type: lag 
+Coefficients: (asymptotic standard errors) 
+            Estimate Std. Error z value  Pr(&gt;|z|)
+(Intercept)   6.0210     1.5889  3.7895 0.0001509
+avg_tmp       5.0232     1.0460  4.8024 1.568e-06
+
+Rho: 0.36827, LR test value: 6.3028, p-value: 0.012055
+Asymptotic standard error: 0.13796
+    z-value: 2.6694, p-value: 0.0075995
+Wald statistic: 7.1255, p-value: 0.0075995
+
+Log likelihood: -1995.162 for lag model
+ML residual variance (sigma squared): 316.77, (sigma: 17.798)
+Number of observations: 464 
+Number of parameters estimated: 4 
+AIC: 3998.3, (AIC for lm: 4002.6)
+LM test for residual autocorrelation
+test value: 2.0437, p-value: 0.15284</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>                 2.5 %    97.5 %
+rho         0.09787055 0.6386732
+(Intercept) 2.90686960 9.1350479
+avg_tmp     2.97310149 7.0732451</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>
+Call:lagsarlm(formula = dth_formula8, data = data, listw = weights)
+
+Residuals:
+      Min        1Q    Median        3Q       Max 
+-23.30870  -8.24517  -5.03964   0.89293 168.00626 
+
+Type: lag 
+Coefficients: (asymptotic standard errors) 
+            Estimate Std. Error z value Pr(&gt;|z|)
+(Intercept)   2.9034     1.2746  2.2778  0.02274
+precip       -2.1615     1.0318 -2.0949  0.03618
+
+Rho: 0.66176, LR test value: 31.568, p-value: 1.9257e-08
+Asymptotic standard error: 0.098891
+    z-value: 6.6918, p-value: 2.204e-11
+Wald statistic: 44.781, p-value: 2.204e-11
+
+Log likelihood: -2006.285 for lag model
+ML residual variance (sigma squared): 328.47, (sigma: 18.124)
+Number of observations: 464 
+Number of parameters estimated: 4 
+AIC: 4020.6, (AIC for lm: 4050.1)
+LM test for residual autocorrelation
+test value: 0.44214, p-value: 0.50609</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>                 2.5 %     97.5 %
+rho          0.4679372  0.8555817
+(Intercept)  0.4050966  5.4016280
+precip      -4.1838690 -0.1392305</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>
+Call:lagsarlm(formula = dth_formula9, data = data, listw = weights)
+
+Residuals:
+      Min        1Q    Median        3Q       Max 
+-24.36893  -9.21588  -3.82763   0.93608 166.84246 
+
+Type: lag 
+Coefficients: (asymptotic standard errors) 
+            Estimate Std. Error z value Pr(&gt;|z|)
+(Intercept)  3.38863    1.28828  2.6304 0.008529
+elevatn     -2.37616    0.88194 -2.6943 0.007055
+
+Rho: 0.64624, LR test value: 29.685, p-value: 5.0832e-08
+Asymptotic standard error: 0.10079
+    z-value: 6.4119, p-value: 1.4374e-10
+Wald statistic: 41.112, p-value: 1.4373e-10
+
+Log likelihood: -2004.586 for lag model
+ML residual variance (sigma squared): 326.38, (sigma: 18.066)
+Number of observations: 464 
+Number of parameters estimated: 4 
+AIC: 4017.2, (AIC for lm: 4044.9)
+LM test for residual autocorrelation
+test value: 1.7093, p-value: 0.19108</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>                 2.5 %     97.5 %
+rho          0.4487011  0.8437839
+(Intercept)  0.8636529  5.9136010
+elevatn     -4.1047270 -0.6476006</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>
+Call:lagsarlm(formula = dth_formula10, data = data, listw = weights)
+
+Residuals:
+     Min       1Q   Median       3Q      Max 
+-24.0563  -8.5951  -4.8468   1.2053 166.7985 
+
+Type: lag 
+Coefficients: (asymptotic standard errors) 
+            Estimate Std. Error z value Pr(&gt;|z|)
+(Intercept)  4.03598    1.36478  2.9572 0.003104
+ALWAYS       2.22629    0.89015  2.5010 0.012384
+
+Rho: 0.59282, LR test value: 20.68, p-value: 5.4272e-06
+Asymptotic standard error: 0.11008
+    z-value: 5.3852, p-value: 7.2372e-08
+Wald statistic: 29, p-value: 7.2372e-08
+
+Log likelihood: -1985.987 for lag model
+ML residual variance (sigma squared): 331.6, (sigma: 18.21)
+Number of observations: 459 
+Number of parameters estimated: 4 
+AIC: 3980, (AIC for lm: 3998.7)
+LM test for residual autocorrelation
+test value: 0.00010149, p-value: 0.99196</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>                2.5 %    97.5 %
+rho         0.3770590 0.8085776
+(Intercept) 1.3610565 6.7109124
+ALWAYS      0.4816244 3.9709617</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>
+Call:lagsarlm(formula = dth_formula11, data = data, listw = weights)
+
+Residuals:
+     Min       1Q   Median       3Q      Max 
+-21.6977  -7.2618  -3.1541   2.7660 161.8079 
+
+Type: lag 
+Coefficients: (asymptotic standard errors) 
+             Estimate Std. Error z value  Pr(&gt;|z|)
+(Intercept) -21.85642    2.51311  -8.697 &lt; 2.2e-16
+Mnth_Cd       2.96991    0.28979  10.248 &lt; 2.2e-16
+
+Rho: 0.78428, LR test value: 56.641, p-value: 5.2292e-14
+Asymptotic standard error: 0.068853
+    z-value: 11.391, p-value: &lt; 2.22e-16
+Wald statistic: 129.75, p-value: &lt; 2.22e-16
+
+Log likelihood: -1961.551 for lag model
+ML residual variance (sigma squared): 268.29, (sigma: 16.38)
+Number of observations: 464 
+Number of parameters estimated: 4 
+AIC: 3931.1, (AIC for lm: 3985.7)
+LM test for residual autocorrelation
+test value: 3.5635, p-value: 0.059063</code></pre>
+</div>
+</div>
+</section>
+</section>
+</section>
+
+</main>
+<!-- /main column -->
+<script id="quarto-html-after-body" type="application/javascript">
+window.document.addEventListener("DOMContentLoaded", function (event) {
+  const toggleBodyColorMode = (bsSheetEl) => {
+    const mode = bsSheetEl.getAttribute("data-mode");
+    const bodyEl = window.document.querySelector("body");
+    if (mode === "dark") {
+      bodyEl.classList.add("quarto-dark");
+      bodyEl.classList.remove("quarto-light");
+    } else {
+      bodyEl.classList.add("quarto-light");
+      bodyEl.classList.remove("quarto-dark");
+    }
+  }
+  const toggleBodyColorPrimary = () => {
+    const bsSheetEl = window.document.querySelector("link#quarto-bootstrap");
+    if (bsSheetEl) {
+      toggleBodyColorMode(bsSheetEl);
+    }
+  }
+  toggleBodyColorPrimary();  
+  const icon = "";
+  const anchorJS = new window.AnchorJS();
+  anchorJS.options = {
+    placement: 'right',
+    icon: icon
+  };
+  anchorJS.add('.anchored');
+  const clipboard = new window.ClipboardJS('.code-copy-button', {
+    target: function(trigger) {
+      return trigger.previousElementSibling;
+    }
+  });
+  clipboard.on('success', function(e) {
+    // button target
+    const button = e.trigger;
+    // don't keep focus
+    button.blur();
+    // flash "checked"
+    button.classList.add('code-copy-button-checked');
+    var currentTitle = button.getAttribute("title");
+    button.setAttribute("title", "Copied!");
+    let tooltip;
+    if (window.bootstrap) {
+      button.setAttribute("data-bs-toggle", "tooltip");
+      button.setAttribute("data-bs-placement", "left");
+      button.setAttribute("data-bs-title", "Copied!");
+      tooltip = new bootstrap.Tooltip(button, 
+        { trigger: "manual", 
+          customClass: "code-copy-button-tooltip",
+          offset: [0, -8]});
+      tooltip.show();    
+    }
+    setTimeout(function() {
+      if (tooltip) {
+        tooltip.hide();
+        button.removeAttribute("data-bs-title");
+        button.removeAttribute("data-bs-toggle");
+        button.removeAttribute("data-bs-placement");
+      }
+      button.setAttribute("title", currentTitle);
+      button.classList.remove('code-copy-button-checked');
+    }, 1000);
+    // clear code selection
+    e.clearSelection();
+  });
+  function tippyHover(el, contentFn) {
+    const config = {
+      allowHTML: true,
+      content: contentFn,
+      maxWidth: 500,
+      delay: 100,
+      arrow: false,
+      appendTo: function(el) {
+          return el.parentElement;
+      },
+      interactive: true,
+      interactiveBorder: 10,
+      theme: 'quarto',
+      placement: 'bottom-start'
+    };
+    window.tippy(el, config); 
+  }
+  const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+  for (var i=0; i<noterefs.length; i++) {
+    const ref = noterefs[i];
+    tippyHover(ref, function() {
+      // use id or data attribute instead here
+      let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+      try { href = new URL(href).hash; } catch {}
+      const id = href.replace(/^#\/?/, "");
+      const note = window.document.getElementById(id);
+      return note.innerHTML;
+    });
+  }
+  const findCites = (el) => {
+    const parentEl = el.parentElement;
+    if (parentEl) {
+      const cites = parentEl.dataset.cites;
+      if (cites) {
+        return {
+          el,
+          cites: cites.split(' ')
+        };
+      } else {
+        return findCites(el.parentElement)
+      }
+    } else {
+      return undefined;
+    }
+  };
+  var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+  for (var i=0; i<bibliorefs.length; i++) {
+    const ref = bibliorefs[i];
+    const citeInfo = findCites(ref);
+    if (citeInfo) {
+      tippyHover(citeInfo.el, function() {
+        var popup = window.document.createElement('div');
+        citeInfo.cites.forEach(function(cite) {
+          var citeDiv = window.document.createElement('div');
+          citeDiv.classList.add('hanging-indent');
+          citeDiv.classList.add('csl-entry');
+          var biblioDiv = window.document.getElementById('ref-' + cite);
+          if (biblioDiv) {
+            citeDiv.innerHTML = biblioDiv.innerHTML;
+          }
+          popup.appendChild(citeDiv);
+        });
+        return popup.innerHTML;
+      });
+    }
+  }
+});
+</script>
+</div> <!-- /content -->
+
+
+
+</body></html>
