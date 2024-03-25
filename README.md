@@ -10,6 +10,7 @@ Smoke data downloaded from the Stanford ECHO Lab GitHub: https://github.com/echo
 
 Data was downloaded and cleaned. All coding for data cleaning can be found in the folder: data-cleaning-and-prelim-analysis
 
-The final shapefile that is used for the statistical analysis can be found in the shapfiles folder.
+The final shapefile that is used for the statistical analysis can be found in the shapefiles folder.
+The data dictionary file explains each variable in the shapefile
 
 The final analysis reported in the manuscript can be found in the final-analyisis folder
