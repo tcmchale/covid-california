@@ -1,0 +1,12 @@
+name: California-monthly-covid-smoke
+title: California-monthly-covid-smoke
+username: mchal053
+account: mchal053
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 11575891
+bundleId: 8411946
+url: https://mchal053.shinyapps.io/California-monthly-covid-smoke/
+version: 1
+asMultiple: FALSE
+asStatic: FALSE
